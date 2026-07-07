@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#222220">
+<link rel="icon" href="shared/favicon.svg">
+<link rel="stylesheet" href="shared/brand.css">
+<title>Chem Balancer</title>
+<style>
+  .wrap {
+    position: relative;
+    min-height: 100dvh;
+    max-width: 560px;
+    margin: 0 auto;
+    padding: max(20px, env(safe-area-inset-top)) 20px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; }
+  .stats { display: flex; gap: 10px; }
+  .stat {
+    background: var(--surface-1, #ececea);
+    background: var(--accent-tint);
+    border-radius: 10px; padding: 8px 12px; flex: 1; text-align: center;
+  }
+  .stat .k { font-size: 12px; color: var(--muted); }
+  .stat .v { font-size: 20px; font-weight: 600; margin-top: 1px; }
+
+  .progress { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+  .progress > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s ease; }
+
+  .eqcard {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 16px;
+  }
+  .equation { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 12px 8px; }
+  .sp { display: flex; align-items: center; gap: 6px; }
+  .sp .coef { min-width: 18px; text-align: center; font-size: 22px; font-weight: 600; }
+  .sp .formula { font-size: 24px; margin-left: 2px; }
+  .step {
+    width: 32px; height: 32px; padding: 0; font-size: 18px; line-height: 1;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+    color: var(--ink); cursor: pointer;
+  }
+  .step:active { background: var(--bg); }
+  .sep { font-size: 24px; color: var(--muted); padding: 0 2px; }
+
+  .tally { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; }
+  .tchip {
+    font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted);
+  }
+  .tchip.ok { color: #0f6e56; border-color: #9fe1cb; }
+
+  .instruction { font-size: 13px; color: var(--muted); text-align: center; }
+
+  .controls { display: flex; gap: 10px; }
+  .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: var(--bg); filter: none; }
+
+  .result { background: var(--accent-tint); border-radius: 14px; padding: 16px; }
+  .verdict { font-size: 16px; font-weight: 600; }
+  .rxn { margin-top: 10px; font-size: 14px; }
+  .rxn .k { color: var(--muted); }
+  .rxn .v { font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-logo" role="img" aria-label="Live Laugh Love">
+          <img src="shared/logo.svg" alt="LLL">
+        </span>
+        <span class="brand-name" data-i18n="brand">Chem Balancer</span>
+      </div>
+      <div id="langSlot"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="k" data-i18n="levelLabel">Level</div><div class="v" id="levelV">1</div></div>
+      <div class="stat"><div class="k">Score</div><div class="v" id="scoreV">0</div></div>
+      <div class="stat"><div class="k">Streak</div><div class="v" id="streakV">0</div></div>
+    </div>
+
+    <div class="progress"><span id="progressBar"></span></div>
+
+    <p class="instruction" data-i18n="instruction">Adjust the coefficients so both sides have equal atoms.</p>
+
+    <div class="eqcard">
+      <div class="equation" id="equation"></div>
+      <div class="tally" id="tally"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn secondary" id="revealBtn" data-i18n="revealBtn" style="flex:0 0 auto;">Reveal</button>
+      <button class="btn" id="checkBtn" data-i18n="checkBtn" style="flex:1;">Check</button>
+    </div>
+
+    <div class="result hidden" id="result">
+      <div class="verdict" id="verdict"></div>
+      <div class="rxn" id="rxn"><span class="k" data-i18n="rxnLabel">Reaction type</span>: <span class="v" id="rxnV"></span></div>
+      <button class="btn" id="nextBtn" data-i18n="nextBtn" style="width:100%; margin-top:12px;">Next</button>
+    </div>
+  </div>
+
+  <script src="shared/i18n.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      var S = {
+        "ja": { brand: "\u5316\u5b66\u5f0f\u30d0\u30e9\u30f3\u30b9", instruction: "\u4e21\u8fba\u306e\u539f\u5b50\u6570\u304c\u7b49\u3057\u304f\u306a\u308b\u3088\u3046\u306b\u4fc2\u6570\u3092\u8abf\u6574\u3057\u3066\u304f\u3060\u3055\u3044\u3002", checkBtn: "\u78ba\u8a8d", revealBtn: "\u7b54\u3048\u3092\u898b\u308b", nextBtn: "\u6b21\u3078", levelLabel: "\u30ec\u30d9\u30eb", balanced: "\u30d0\u30e9\u30f3\u30b9\u304c\u53d6\u308c\u307e\u3057\u305f\uff01", notBalanced: "\u307e\u3060\u30d0\u30e9\u30f3\u30b9\u304c\u53d6\u308c\u3066\u3044\u307e\u305b\u3093\u3002\u8d64\u3044\u6570\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002", revealed: "\u3053\u308c\u304c\u30d0\u30e9\u30f3\u30b9\u306e\u53d6\u308c\u305f\u5f0f\u3067\u3059\u3002", simplerTip: "\uff08\u6700\u3082\u7c21\u5358\u306a\u6574\u6570\u6bd4\u304c\u9ad8\u5f97\u70b9\uff09", rxnLabel: "\u53cd\u5fdc\u306e\u7a2e\u985e", levelComplete: "\u30ec\u30d9\u30eb\u30af\u30ea\u30a2\uff01", combustion: "\u71c3\u713c", synthesis: "\u5316\u5408", decomposition: "\u5206\u89e3" },
+        "en": { brand: "Chem Balancer", instruction: "Adjust the coefficients so both sides have equal atoms.", checkBtn: "Check", revealBtn: "Reveal", nextBtn: "Next", levelLabel: "Level", balanced: "Balanced!", notBalanced: "Not balanced yet \u2014 check the highlighted counts.", revealed: "Here's the balanced equation.", simplerTip: "(tip: the simplest whole-number ratio scores more)", rxnLabel: "Reaction type", levelComplete: "Level complete!", combustion: "Combustion", synthesis: "Synthesis", decomposition: "Decomposition" },
+        "zh-Hans": { brand: "\u5316\u5b66\u65b9\u7a0b\u5f0f\u914d\u5e73", instruction: "\u8c03\u6574\u7cfb\u6570\uff0c\u4f7f\u4e24\u8fb9\u539f\u5b50\u6570\u76f8\u7b49\u3002", checkBtn: "\u68c0\u67e5", revealBtn: "\u663e\u793a\u7b54\u6848", nextBtn: "\u4e0b\u4e00\u4e2a", levelLabel: "\u5173\u5361", balanced: "\u5df2\u914d\u5e73\uff01", notBalanced: "\u8fd8\u6ca1\u914d\u5e73\u2014\u2014\u8bf7\u68c0\u67e5\u9ad8\u4eae\u7684\u6570\u5b57\u3002", revealed: "\u8fd9\u662f\u914d\u5e73\u540e\u7684\u65b9\u7a0b\u5f0f\u3002", simplerTip: "\uff08\u6700\u7b80\u6574\u6570\u6bd4\u5f97\u5206\u66f4\u9ad8\uff09", rxnLabel: "\u53cd\u5e94\u7c7b\u578b", levelComplete: "\u5173\u5361\u5b8c\u6210\uff01", combustion: "\u71c3\u70e7", synthesis: "\u5316\u5408", decomposition: "\u5206\u89e3" },
+        "zh-Hant": { brand: "\u5316\u5b78\u65b9\u7a0b\u5f0f\u914d\u5e73", instruction: "\u8abf\u6574\u4fc2\u6578\uff0c\u4f7f\u5169\u908a\u539f\u5b50\u6578\u76f8\u7b49\u3002", checkBtn: "\u6aa2\u67e5", revealBtn: "\u986f\u793a\u7b54\u6848", nextBtn: "\u4e0b\u4e00\u500b", levelLabel: "\u95dc\u5361", balanced: "\u5df2\u914d\u5e73\uff01", notBalanced: "\u9084\u6c92\u914d\u5e73\u2014\u2014\u8acb\u6aa2\u67e5\u6a19\u793a\u7684\u6578\u5b57\u3002", revealed: "\u9019\u662f\u914d\u5e73\u5f8c\u7684\u65b9\u7a0b\u5f0f\u3002", simplerTip: "\uff08\u6700\u7c21\u6574\u6578\u6bd4\u5f97\u5206\u66f4\u9ad8\uff09", rxnLabel: "\u53cd\u61c9\u985e\u578b", levelComplete: "\u95dc\u5361\u5b8c\u6210\uff01", combustion: "\u71c3\u71d2", synthesis: "\u5316\u5408", decomposition: "\u5206\u89e3" },
+        "ko": { brand: "\ud654\ud559\uc2dd \uade0\ud615 \ub9de\ucd94\uae30", instruction: "\uc591\ucabd \uc6d0\uc790 \uc218\uac00 \uac19\ub3c4\ub85d \uacc4\uc218\ub97c \uc870\uc815\ud558\uc138\uc694.", checkBtn: "\ud655\uc778", revealBtn: "\uc815\ub2f5 \ubcf4\uae30", nextBtn: "\ub2e4\uc74c", levelLabel: "\ub808\ubca8", balanced: "\uade0\ud615 \uc644\uc131!", notBalanced: "\uc544\uc9c1 \uade0\ud615\uc774 \uc548 \ub9de\uc544\uc694 \u2014 \uac15\uc870\ub41c \uac1c\uc218\ub97c \ud655\uc778\ud558\uc138\uc694.", revealed: "\uade0\ud615 \uc7a1\ud78c \uc2dd\uc785\ub2c8\ub2e4.", simplerTip: "(\uac00\uc7a5 \uac04\ub2e8\ud55c \uc815\uc218\ube44\uac00 \ub354 \ub192\uc740 \uc810\uc218)", rxnLabel: "\ubc18\uc751 \uc720\ud615", levelComplete: "\ub808\ubca8 \uc644\ub8cc!", combustion: "\uc5f0\uc18c", synthesis: "\ud654\ud569", decomposition: "\ubd84\ud574" },
+        "ms": { brand: "Pengimbang Kimia", instruction: "Laraskan pekali supaya kedua-dua belah mempunyai atom yang sama.", checkBtn: "Semak", revealBtn: "Dedah", nextBtn: "Seterusnya", levelLabel: "Tahap", balanced: "Seimbang!", notBalanced: "Belum seimbang \u2014 semak kiraan yang ditandakan.", revealed: "Ini persamaan yang seimbang.", simplerTip: "(petua: nisbah nombor bulat paling ringkas dapat markah lebih)", rxnLabel: "Jenis tindak balas", levelComplete: "Tahap selesai!", combustion: "Pembakaran", synthesis: "Sintesis", decomposition: "Penguraian" }
+      };
+
+      var css = getComputedStyle(document.documentElement);
+      function tok(n,f){var v=css.getPropertyValue(n).trim();return v||f;}
+      var OK = "#0f6e56", INK = tok("--ink","#222220"), MUT = tok("--muted","#6f6f6a");
+
+      function A(o){return o;}
+      var LEVELS = [
+        [
+          { L:[{f:"H\u2082",a:{H:2}},{f:"O\u2082",a:{O:2}}], R:[{f:"H\u2082O",a:{H:2,O:1}}], ans:[2,1,2], rxn:"synthesis" },
+          { L:[{f:"N\u2082",a:{N:2}},{f:"H\u2082",a:{H:2}}], R:[{f:"NH\u2083",a:{N:1,H:3}}], ans:[1,3,2], rxn:"synthesis" },
+          { L:[{f:"H\u2082",a:{H:2}},{f:"Cl\u2082",a:{Cl:2}}], R:[{f:"HCl",a:{H:1,Cl:1}}], ans:[1,1,2], rxn:"synthesis" },
+          { L:[{f:"Na",a:{Na:1}},{f:"Cl\u2082",a:{Cl:2}}], R:[{f:"NaCl",a:{Na:1,Cl:1}}], ans:[2,1,2], rxn:"synthesis" }
+        ],
+        [
+          { L:[{f:"CH\u2084",a:{C:1,H:4}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[1,2,1,2], rxn:"combustion" },
+          { L:[{f:"H\u2082O\u2082",a:{H:2,O:2}}], R:[{f:"H\u2082O",a:{H:2,O:1}},{f:"O\u2082",a:{O:2}}], ans:[2,2,1], rxn:"decomposition" },
+          { L:[{f:"KClO\u2083",a:{K:1,Cl:1,O:3}}], R:[{f:"KCl",a:{K:1,Cl:1}},{f:"O\u2082",a:{O:2}}], ans:[2,2,3], rxn:"decomposition" },
+          { L:[{f:"Al",a:{Al:1}},{f:"O\u2082",a:{O:2}}], R:[{f:"Al\u2082O\u2083",a:{Al:2,O:3}}], ans:[4,3,2], rxn:"synthesis" }
+        ],
+        [
+          { L:[{f:"C\u2083H\u2088",a:{C:3,H:8}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[1,5,3,4], rxn:"combustion" },
+          { L:[{f:"Fe",a:{Fe:1}},{f:"O\u2082",a:{O:2}}], R:[{f:"Fe\u2082O\u2083",a:{Fe:2,O:3}}], ans:[4,3,2], rxn:"synthesis" },
+          { L:[{f:"C\u2082H\u2086",a:{C:2,H:6}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[2,7,4,6], rxn:"combustion" },
+          { L:[{f:"C\u2086H\u2081\u2082O\u2086",a:{C:6,H:12,O:6}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[1,6,6,6], rxn:"combustion" }
+        ]
+      ];
+
+      var eqEl=document.getElementById("equation"), tallyEl=document.getElementById("tally");
+      var checkBtn=document.getElementById("checkBtn"), revealBtn=document.getElementById("revealBtn"), nextBtn=document.getElementById("nextBtn");
+      var result=document.getElementById("result"), verdict=document.getElementById("verdict"), rxnV=document.getElementById("rxnV"), rxnRow=document.getElementById("rxn");
+      var levelV=document.getElementById("levelV"), scoreV=document.getElementById("scoreV"), streakV=document.getElementById("streakV"), progressBar=document.getElementById("progressBar");
+
+      var lv=0, qi=0, score=0, streak=0, done=false, coefs=[], species=[], cur=null;
+
+      LLL_I18N.init(S, { switcherHost: document.getElementById("langSlot"), onChange: function(){ if(cur) render(); } });
+
+      function gcdArr(a){function g(x,y){return y?g(y,x%y):x;}return a.reduce(function(p,c){return g(p,c);});}
+
+      function counts(){
+        var Lc={},Rc={};
+        species.forEach(function(o,gi){
+          var t=o.side==="L"?Lc:Rc;
+          for(var el in o.sp.a){ t[el]=(t[el]||0)+o.sp.a[el]*coefs[gi]; }
+        });
+        return {L:Lc,R:Rc};
+      }
+
+      function chip(sp,gi){
+        var w=document.createElement("div"); w.className="sp";
+        var m=document.createElement("button"); m.className="step"; m.textContent="\u2212"; m.setAttribute("aria-label","decrease");
+        var n=document.createElement("span"); n.className="coef"; n.textContent=coefs[gi];
+        var p=document.createElement("button"); p.className="step"; p.textContent="+"; p.setAttribute("aria-label","increase");
+        var f=document.createElement("span"); f.className="formula"; f.textContent=sp.f;
+        m.onclick=function(){ if(done)return; if(coefs[gi]>1){coefs[gi]--; n.textContent=coefs[gi]; renderTally();} };
+        p.onclick=function(){ if(done)return; if(coefs[gi]<20){coefs[gi]++; n.textContent=coefs[gi]; renderTally();} };
+        w.appendChild(m); w.appendChild(n); w.appendChild(p); w.appendChild(f);
+        return w;
+      }
+      function sep(t){var s=document.createElement("span"); s.className="sep"; s.textContent=t; return s;}
+
+      function render(){
+        cur=LEVELS[lv][qi];
+        species=[]; coefs=[];
+        cur.L.forEach(function(s){species.push({sp:s,side:"L"});});
+        cur.R.forEach(function(s){species.push({sp:s,side:"R"});});
+        species.forEach(function(){coefs.push(1);});
+        eqEl.innerHTML=""; var gi=0;
+        cur.L.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
+        eqEl.appendChild(sep("\u2192"));
+        cur.R.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
+        done=false; result.classList.add("hidden");
+        checkBtn.style.display="block"; revealBtn.style.display="block";
+        levelV.textContent=(lv+1);
+        progressBar.style.width=((qi/LEVELS[lv].length)*100)+"%";
+        renderTally();
+      }
+
+      function renderTally(){
+        var c=counts(), els={}, k;
+        for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
+        tallyEl.innerHTML="";
+        Object.keys(els).forEach(function(el){
+          var l=c.L[el]||0, r=c.R[el]||0, ok=(l===r);
+          var chip=document.createElement("span");
+          chip.className="tchip"+(ok?" ok":"");
+          chip.textContent=el+" "+l+" / "+r+(ok?"  \u2713":"");
+          tallyEl.appendChild(chip);
+        });
+      }
+
+      function finish(pts, msg, col){
+        done=true; score+=pts;
+        scoreV.textContent=score; streakV.textContent=streak;
+        verdict.textContent=msg; verdict.style.color=col;
+        rxnV.textContent=LLL_I18N.t(cur.rxn);
+        rxnRow.style.display="block";
+        checkBtn.style.display="none"; revealBtn.style.display="none";
+        result.classList.remove("hidden");
+      }
+
+      checkBtn.onclick=function(){
+        if(done)return;
+        var c=counts(), els={}, k, bal=true;
+        for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
+        for(var el in els){ if((c.L[el]||0)!==(c.R[el]||0)){bal=false;break;} }
+        if(bal){
+          var simplest=gcdArr(coefs)===1;
+          var pts=simplest?100:60; streak++;
+          finish(pts, LLL_I18N.t("balanced")+" +"+pts+(simplest?"":" "+LLL_I18N.t("simplerTip")), OK);
+        } else {
+          streak=0; streakV.textContent=streak;
+          verdict.textContent=LLL_I18N.t("notBalanced"); verdict.style.color=INK;
+          rxnRow.style.display="none"; nextBtn.style.display="none";
+          result.classList.remove("hidden");
+          setTimeout(function(){ if(!done){ result.classList.add("hidden"); nextBtn.style.display="block"; } }, 1600);
+        }
+      };
+
+      revealBtn.onclick=function(){
+        if(done)return;
+        coefs=cur.ans.slice(); streak=0;
+        eqEl.querySelectorAll(".coef").forEach(function(n,i){ n.textContent=coefs[i]; });
+        renderTally();
+        finish(0, LLL_I18N.t("revealed"), MUT);
+      };
+
+      nextBtn.onclick=function(){
+        qi++;
+        if(qi>=LEVELS[lv].length){
+          qi=0; lv=(lv+1)%LEVELS.length;
+        }
+        render();
+      };
+
+      render();
+    })();
+  </script>
+</body>
+</html>
