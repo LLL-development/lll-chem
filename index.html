@@ -8,34 +8,25 @@
 <link rel="stylesheet" href="shared/brand.css">
 <title>Chem Balancer</title>
 <style>
+  body { justify-content: flex-start; }
   .wrap {
-    position: relative;
-    min-height: 100dvh;
-    max-width: 560px;
-    margin: 0 auto;
-    padding: max(20px, env(safe-area-inset-top)) 20px 40px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+    width: 100%; max-width: 560px; margin: 0 auto;
+    padding: max(20px, env(safe-area-inset-top)) 20px 48px;
+    display: flex; flex-direction: column; gap: 16px;
   }
-  .topbar { display: flex; align-items: center; justify-content: space-between; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .stats { display: flex; gap: 10px; }
-  .stat {
-    background: var(--surface-1, #ececea);
-    background: var(--accent-tint);
-    border-radius: 10px; padding: 8px 12px; flex: 1; text-align: center;
-  }
+  .stat { background: var(--accent-tint); border-radius: 10px; padding: 8px 12px; flex: 1; text-align: center; }
   .stat .k { font-size: 12px; color: var(--muted); }
   .stat .v { font-size: 20px; font-weight: 600; margin-top: 1px; }
 
   .progress { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
   .progress > span { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s ease; }
 
-  .eqcard {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 22px 16px;
-  }
-  .equation { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: center; gap: 12px 8px; }
+  .instruction { font-size: 13px; color: var(--muted); text-align: center; margin: 0; }
+
+  .eqcard { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; }
+  .equation { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 8px; }
   .sp { display: flex; align-items: center; gap: 6px; }
   .sp .coef { min-width: 18px; text-align: center; font-size: 22px; font-weight: 600; }
   .sp .formula { font-size: 24px; margin-left: 2px; }
@@ -44,17 +35,34 @@
     border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
     color: var(--ink); cursor: pointer;
   }
-  .step:active { background: var(--bg); }
+  .step:hover { background: var(--bg); }
+  .step:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .sep { font-size: 24px; color: var(--muted); padding: 0 2px; }
 
   .tally { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; }
   .tchip {
-    font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 600; padding: 5px 11px; border-radius: 999px;
     border: 1px solid var(--border); color: var(--muted);
+    background: transparent; cursor: pointer;
   }
+  .tchip:hover { border-color: var(--accent); }
+  .tchip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   .tchip.ok { color: #0f6e56; border-color: #9fe1cb; }
+  :root[data-theme="dark"] .tchip.ok { color: #6fd7b4; border-color: #2f5f51; }
 
-  .instruction { font-size: 13px; color: var(--muted); text-align: center; }
+  .lives { display: flex; justify-content: center; gap: 5px; }
+  .lives span { font-size: 15px; line-height: 1; }
+  .lives span.lost { opacity: .25; }
+
+  .levelup {
+    background: var(--accent-tint); border-radius: 14px; padding: 20px 16px; text-align: center;
+  }
+  .levelup h2 { font-size: 18px; margin: 0 0 6px; }
+  .levelup p { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
+
+  .hintbar { min-height: 20px; text-align: center; }
+  .hintbar span { font-size: 13px; color: var(--muted); }
 
   .controls { display: flex; gap: 10px; }
   .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
@@ -62,10 +70,102 @@
 
   .result { background: var(--accent-tint); border-radius: 14px; padding: 16px; }
   .verdict { font-size: 16px; font-weight: 600; }
-  .rxn { margin-top: 10px; font-size: 14px; }
-  .rxn .k { color: var(--muted); }
-  .rxn .v { font-weight: 600; }
+  .answer { font-size: 20px; margin-top: 12px; text-align: center; }
+  .meta { margin-top: 12px; font-size: 14px; }
+  .meta .k { color: var(--muted); }
+  .meta .v { font-weight: 600; }
+  .explain {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    font-size: 14px; line-height: 1.6;
+  }
+  .explain .k { color: var(--muted); display: block; font-size: 12px; margin-bottom: 3px; }
+
+  /* ---------- Below-game sections ---------- */
+  .section { margin-top: 26px; }
+  .section h2 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 12px; }
+
+  .daily {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .daily .d-ic { font-size: 20px; flex: none; }
+  .daily .d-text { flex: 1; min-width: 0; }
+  .daily .d-title { font-size: 14px; font-weight: 700; }
+  .daily .d-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  .daily .btn { min-height: 38px; padding: 8px 16px; font-size: 14px; flex: none; }
+  .daily.done { opacity: .75; }
+
+  .steps { display: grid; gap: 10px; }
+  .stepcard {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 13px 14px;
+  }
+  .stepcard .n {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent, #fff);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .stepcard p { margin: 2px 0 0; font-size: 14px; line-height: 1.5; }
+
+  .why {
+    background: var(--accent-tint); border-radius: 14px; padding: 16px;
+    font-size: 14px; line-height: 1.65;
+  }
+  .why .eqdemo {
+    text-align: center; font-size: 17px; margin-top: 10px; font-weight: 600;
+  }
+
+  .rxngrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 430px) { .rxngrid { grid-template-columns: 1fr; } }
+  .rxncard {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 13px 14px;
+  }
+  .rxncard .r-name { font-size: 14px; font-weight: 700; }
+  .rxncard .r-pat { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .rxncard .r-eg { font-size: 13px; margin-top: 7px; }
+
+  .pt { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+  .pt button {
+    font-family: var(--sans); background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 9px 4px 7px; cursor: pointer; text-align: center; color: var(--ink);
+  }
+  .pt button:hover { border-color: var(--accent); }
+  .pt button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .pt .sym { font-size: 17px; font-weight: 700; display: block; }
+  .pt .num { font-size: 10px; color: var(--muted); display: block; margin-top: 1px; }
+  .pt-info {
+    margin-top: 10px; min-height: 20px; font-size: 13px; color: var(--muted);
+    text-align: center; line-height: 1.5;
+  }
+
+  .ach { display: flex; flex-wrap: wrap; gap: 8px; }
+  .achb {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 999px; padding: 6px 12px;
+  }
+  .achb.locked { opacity: .35; }
+
+  .foot {
+    margin-top: 34px; padding-top: 20px; border-top: 1px solid var(--border); text-align: center;
+  }
+  .foot p { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+  .foot a.gh {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: none;
+    border: 1px solid var(--border); border-radius: 9px; padding: 8px 14px; background: var(--surface);
+  }
+  .foot a.gh:hover { border-color: var(--accent); }
 </style>
+<script>
+  (function(){try{var t=localStorage.getItem("lll_theme");
+  if(t!=="dark"&&t!=="light"){t=(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light";}
+  document.documentElement.setAttribute("data-theme",t);}catch(e){}})();
+</script>
 </head>
 <body>
   <div class="wrap">
@@ -76,17 +176,27 @@
         </span>
         <span class="brand-name" data-i18n="brand">Chem Balancer</span>
       </div>
-      <div id="langSlot"></div>
+      <div id="navRight" style="display:flex; gap:8px; align-items:center;"></div>
     </div>
 
     <div class="stats">
       <div class="stat"><div class="k" data-i18n="levelLabel">Level</div><div class="v" id="levelV">1</div></div>
-      <div class="stat"><div class="k">Score</div><div class="v" id="scoreV">0</div></div>
-      <div class="stat"><div class="k">Streak</div><div class="v" id="streakV">0</div></div>
+      <div class="stat"><div class="k" data-i18n="scoreLabel">Score</div><div class="v" id="scoreV">0</div></div>
+      <div class="stat"><div class="k" data-i18n="streakLabel">Streak</div><div class="v" id="streakV">0</div></div>
+      <div class="stat"><div class="k" data-i18n="bestLabel">Best</div><div class="v" id="bestV">0</div></div>
+    </div>
+
+    <div class="daily" id="dailyCard">
+      <span class="d-ic" aria-hidden="true">⚗️</span>
+      <span class="d-text">
+        <span class="d-title" data-i18n="dailyTitle">Daily challenge</span>
+        <span class="d-sub" id="dailySub"></span>
+      </span>
+      <button class="btn" id="dailyBtn" data-i18n="dailyPlay">Play</button>
     </div>
 
     <div class="progress"><span id="progressBar"></span></div>
-
+    <div class="lives" id="lives" aria-live="polite"></div>
     <p class="instruction" data-i18n="instruction">Adjust the coefficients so both sides have equal atoms.</p>
 
     <div class="eqcard">
@@ -94,167 +204,410 @@
       <div class="tally" id="tally"></div>
     </div>
 
+    <div class="hintbar"><span id="hintText"></span></div>
+
     <div class="controls">
+      <button class="btn secondary" id="hintBtn" data-i18n="hintBtn" style="flex:0 0 auto;">Hint</button>
       <button class="btn secondary" id="revealBtn" data-i18n="revealBtn" style="flex:0 0 auto;">Reveal</button>
       <button class="btn" id="checkBtn" data-i18n="checkBtn" style="flex:1;">Check</button>
     </div>
 
     <div class="result hidden" id="result">
       <div class="verdict" id="verdict"></div>
-      <div class="rxn" id="rxn"><span class="k" data-i18n="rxnLabel">Reaction type</span>: <span class="v" id="rxnV"></span></div>
-      <button class="btn" id="nextBtn" data-i18n="nextBtn" style="width:100%; margin-top:12px;">Next</button>
+      <div class="answer" id="answerEq"></div>
+      <div class="meta" id="rxnRow">
+        <span class="k" data-i18n="rxnLabel">Reaction type</span>: <span class="v" id="rxnV"></span>
+      </div>
+      <div class="explain" id="explainRow">
+        <span class="k" data-i18n="explainLabel">How to solve it</span>
+        <span id="explainV"></span>
+      </div>
+      <button class="btn" id="nextBtn" data-i18n="nextBtn" style="width:100%; margin-top:14px;">Next</button>
+    </div>
+
+    <!-- How to play -->
+    <div class="section">
+      <h2 data-i18n="howTitle">How to play</h2>
+      <div class="steps">
+        <div class="stepcard"><span class="n">1</span><p data-i18n="how1">Look at the atom counts below the equation — each shows left / right.</p></div>
+        <div class="stepcard"><span class="n">2</span><p data-i18n="how2">Use the − and + buttons to change the coefficients in front of each formula.</p></div>
+        <div class="stepcard"><span class="n">3</span><p data-i18n="how3">When every count matches (all green ✓), press Check. The simplest ratio scores most.</p></div>
+      </div>
+    </div>
+
+    <!-- Why balance -->
+    <div class="section">
+      <h2 data-i18n="whyTitle">Why balance equations?</h2>
+      <div class="why">
+        <span data-i18n="whyText">Atoms are never created or destroyed in a chemical reaction — they are only rearranged. That's the law of conservation of mass. A balanced equation shows the same number of each atom on both sides, so it describes what really happens.</span>
+        <div class="eqdemo">2H₂ + O₂ → 2H₂O</div>
+      </div>
+    </div>
+
+    <!-- Reaction types -->
+    <div class="section">
+      <h2 data-i18n="rxnTitle">Reaction types</h2>
+      <div class="rxngrid">
+        <div class="rxncard"><div class="r-name" data-i18n="synthesis">Synthesis</div><div class="r-pat">A + B → AB</div><div class="r-eg">2H₂ + O₂ → 2H₂O</div></div>
+        <div class="rxncard"><div class="r-name" data-i18n="decomposition">Decomposition</div><div class="r-pat">AB → A + B</div><div class="r-eg">2H₂O₂ → 2H₂O + O₂</div></div>
+        <div class="rxncard"><div class="r-name" data-i18n="combustion">Combustion</div><div class="r-pat">fuel + O₂ → CO₂ + H₂O</div><div class="r-eg">CH₄ + 2O₂ → CO₂ + 2H₂O</div></div>
+        <div class="rxncard"><div class="r-name" data-i18n="single">Single replacement</div><div class="r-pat">A + BC → AC + B</div><div class="r-eg">Zn + 2HCl → ZnCl₂ + H₂</div></div>
+      </div>
+    </div>
+
+    <!-- Periodic table strip -->
+    <div class="section">
+      <h2 data-i18n="ptTitle">Elements in this game</h2>
+      <div class="pt" id="ptGrid"></div>
+      <div class="pt-info" id="ptInfo"></div>
+    </div>
+
+    <!-- Achievements -->
+    <div class="section">
+      <h2 data-i18n="achTitle">Achievements</h2>
+      <div class="ach" id="achRow"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="foot">
+     <p data-i18n="footNote">Part of the LLL Series OSS — free and open source, built by Live Laugh Love.</p>
     </div>
   </div>
 
+  <script src="shared/theme.js"></script>
   <script src="shared/i18n.js"></script>
   <script>
-    (function () {
-      "use strict";
+  var LEVELS=[[{"L":[{"f":"H₂","a":{"H":2}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[2,1,2],"rxn":"synthesis","first":"H"},{"L":[{"f":"N₂","a":{"N":2}},{"f":"H₂","a":{"H":2}}],"R":[{"f":"NH₃","a":{"N":1,"H":3}}],"ans":[1,3,2],"rxn":"synthesis","first":"N"},{"L":[{"f":"H₂","a":{"H":2}},{"f":"Cl₂","a":{"Cl":2}}],"R":[{"f":"HCl","a":{"H":1,"Cl":1}}],"ans":[1,1,2],"rxn":"synthesis","first":"H"},{"L":[{"f":"Na","a":{"Na":1}},{"f":"Cl₂","a":{"Cl":2}}],"R":[{"f":"NaCl","a":{"Na":1,"Cl":1}}],"ans":[2,1,2],"rxn":"synthesis","first":"Cl"},{"L":[{"f":"K","a":{"K":1}},{"f":"Cl₂","a":{"Cl":2}}],"R":[{"f":"KCl","a":{"K":1,"Cl":1}}],"ans":[2,1,2],"rxn":"synthesis","first":"Cl"},{"L":[{"f":"Mg","a":{"Mg":1}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"MgO","a":{"Mg":1,"O":1}}],"ans":[2,1,2],"rxn":"synthesis","first":"O"},{"L":[{"f":"Ca","a":{"Ca":1}},{"f":"Cl₂","a":{"Cl":2}}],"R":[{"f":"CaCl₂","a":{"Ca":1,"Cl":2}}],"ans":[1,1,1],"rxn":"synthesis","first":"Ca"},{"L":[{"f":"Li","a":{"Li":1}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"Li₂O","a":{"Li":2,"O":1}}],"ans":[4,1,2],"rxn":"synthesis","first":"O"}],[{"L":[{"f":"CH₄","a":{"C":1,"H":4}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[1,2,1,2],"rxn":"combustion","first":"C"},{"L":[{"f":"H₂O₂","a":{"H":2,"O":2}}],"R":[{"f":"H₂O","a":{"H":2,"O":1}},{"f":"O₂","a":{"O":2}}],"ans":[2,2,1],"rxn":"decomposition","first":"O"},{"L":[{"f":"KClO₃","a":{"K":1,"Cl":1,"O":3}}],"R":[{"f":"KCl","a":{"K":1,"Cl":1}},{"f":"O₂","a":{"O":2}}],"ans":[2,2,3],"rxn":"decomposition","first":"O"},{"L":[{"f":"Al","a":{"Al":1}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"Al₂O₃","a":{"Al":2,"O":3}}],"ans":[4,3,2],"rxn":"synthesis","first":"Al"},{"L":[{"f":"Fe","a":{"Fe":1}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"Fe₂O₃","a":{"Fe":2,"O":3}}],"ans":[4,3,2],"rxn":"synthesis","first":"Fe"},{"L":[{"f":"N₂O₅","a":{"N":2,"O":5}}],"R":[{"f":"NO₂","a":{"N":1,"O":2}},{"f":"O₂","a":{"O":2}}],"ans":[2,4,1],"rxn":"decomposition","first":"N"},{"L":[{"f":"Zn","a":{"Zn":1}},{"f":"HCl","a":{"H":1,"Cl":1}}],"R":[{"f":"ZnCl₂","a":{"Zn":1,"Cl":2}},{"f":"H₂","a":{"H":2}}],"ans":[1,2,1,1],"rxn":"single","first":"Cl"},{"L":[{"f":"CaCO₃","a":{"Ca":1,"C":1,"O":3}}],"R":[{"f":"CaO","a":{"Ca":1,"O":1}},{"f":"CO₂","a":{"C":1,"O":2}}],"ans":[1,1,1],"rxn":"decomposition","first":"Ca"}],[{"L":[{"f":"C₃H₈","a":{"C":3,"H":8}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[1,5,3,4],"rxn":"combustion","first":"C"},{"L":[{"f":"C₂H₆","a":{"C":2,"H":6}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[2,7,4,6],"rxn":"combustion","first":"C"},{"L":[{"f":"C₆H₁₂O₆","a":{"C":6,"H":12,"O":6}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[1,6,6,6],"rxn":"combustion","first":"C"},{"L":[{"f":"C₂H₂","a":{"C":2,"H":2}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[2,5,4,2],"rxn":"combustion","first":"C"},{"L":[{"f":"C₄H₁₀","a":{"C":4,"H":10}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[2,13,8,10],"rxn":"combustion","first":"C"},{"L":[{"f":"Fe₂O₃","a":{"Fe":2,"O":3}},{"f":"CO","a":{"C":1,"O":1}}],"R":[{"f":"Fe","a":{"Fe":1}},{"f":"CO₂","a":{"C":1,"O":2}}],"ans":[1,3,2,3],"rxn":"single","first":"Fe"},{"L":[{"f":"NH₃","a":{"N":1,"H":3}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"NO","a":{"N":1,"O":1}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[4,5,4,6],"rxn":"combustion","first":"N"},{"L":[{"f":"C₂H₅OH","a":{"C":2,"H":6,"O":1}},{"f":"O₂","a":{"O":2}}],"R":[{"f":"CO₂","a":{"C":1,"O":2}},{"f":"H₂O","a":{"H":2,"O":1}}],"ans":[1,3,2,3],"rxn":"combustion","first":"C"}]];
+var S={"ja":{"howTitle":"遊び方","how1":"式の下にある原子数を見てください — 左 / 右 の数が表示されます。","how2":"− と + ボタンで各化学式の前の係数を変更します。","how3":"すべての数が一致（全部緑の ✓）したら「確認」を押します。最も簡単な比が高得点です。","whyTitle":"なぜバランスを取るの？","whyText":"化学反応では原子は生成も消滅もしません — 並び替わるだけです。これが質量保存の法則です。バランスの取れた式は両辺の原子数が同じで、実際に起こることを正しく表します。","rxnTitle":"反応の種類","ptTitle":"このゲームの元素","ptAppears":"登場する化合物","achTitle":"実績","dailyTitle":"今日のチャレンジ","dailyPlay":"挑戦","dailyDone":"本日クリア済み ✓","achFirst":"はじめての正解","achStreak":"5連続正解","achNoHint":"ヒントなしでレベルクリア","achLvl3":"レベル3クリア","achDaily":"デイリー達成","footNote":"LLLシリーズOSSの一つ — 無料・オープンソース。Live Laugh Love が開発しています。","viewGithub":"GitHub で見る","bestLabel":"最高","livesOut":"ライフがなくなりました。もう一度挑戦しましょう！","tryAgain":"もう一度","levelUp":"レベルクリア！","levelUpSub":"次のレベルに進みます。","continueBtn":"続ける","brand":"化学式バランス","instruction":"両辺の原子数が等しくなるように係数を調整してください。","checkBtn":"確認","revealBtn":"答えを見る","hintBtn":"ヒント","nextBtn":"次へ","levelLabel":"レベル","scoreLabel":"スコア","streakLabel":"連続正解","balanced":"バランスが取れました！","notBalanced":"まだバランスが取れていません。数を確認してください。","revealed":"これがバランスの取れた式です。","simplerTip":"（最も簡単な整数比が高得点）","rxnLabel":"反応の種類","hintText":"{el} から始めましょう — 最も少ない化合物に含まれています。","explainLabel":"解き方","explainText":"まず {el} を合わせ、次に残りの元素を順に調整します。","answerLabel":"答え","levelComplete":"レベルクリア！","combustion":"燃焼","synthesis":"化合","decomposition":"分解","single":"単置換"},"en":{"howTitle":"How to play","how1":"Look at the atom counts below the equation — each shows left / right.","how2":"Use the − and + buttons to change the coefficients in front of each formula.","how3":"When every count matches (all green ✓), press Check. The simplest ratio scores most.","whyTitle":"Why balance equations?","whyText":"Atoms are never created or destroyed in a chemical reaction — they are only rearranged. That's the law of conservation of mass. A balanced equation shows the same number of each atom on both sides, so it describes what really happens.","rxnTitle":"Reaction types","ptTitle":"Elements in this game","ptAppears":"Appears in","achTitle":"Achievements","dailyTitle":"Daily challenge","dailyPlay":"Play","dailyDone":"Done today ✓","achFirst":"First balance","achStreak":"5-streak","achNoHint":"No-hint level","achLvl3":"Level 3 cleared","achDaily":"Daily done","footNote":"Part of the LLL Series OSS — free and open source, built by Live Laugh Love.","viewGithub":"View on GitHub","bestLabel":"Best","livesOut":"Out of lives — give it another go!","tryAgain":"Try again","levelUp":"Level complete!","levelUpSub":"On to the next level.","continueBtn":"Continue","brand":"Chem Balancer","instruction":"Adjust the coefficients so both sides have equal atoms.","checkBtn":"Check","revealBtn":"Reveal","hintBtn":"Hint","nextBtn":"Next","levelLabel":"Level","scoreLabel":"Score","streakLabel":"Streak","balanced":"Balanced!","notBalanced":"Not balanced yet — check the counts below.","revealed":"Here's the balanced equation.","simplerTip":"(tip: the simplest whole-number ratio scores more)","rxnLabel":"Reaction type","hintText":"Start with {el} — it appears in the fewest compounds.","explainLabel":"How to solve it","explainText":"Balance {el} first, then work through the remaining elements one at a time.","answerLabel":"Answer","levelComplete":"Level complete!","combustion":"Combustion","synthesis":"Synthesis","decomposition":"Decomposition","single":"Single replacement"},"zh-Hans":{"howTitle":"玩法","how1":"看方程式下方的原子数——每个都显示 左 / 右。","how2":"用 − 和 + 按钮调整每个化学式前的系数。","how3":"当所有数字都相等（全部绿色 ✓）时，按「检查」。最简比得分最高。","whyTitle":"为什么要配平？","whyText":"化学反应中原子既不会产生也不会消失——只是重新排列。这就是质量守恒定律。配平后的方程式两边原子数相同，才能正确描述真实的反应。","rxnTitle":"反应类型","ptTitle":"本游戏中的元素","ptAppears":"出现在","achTitle":"成就","dailyTitle":"每日挑战","dailyPlay":"开始","dailyDone":"今日已完成 ✓","achFirst":"首次配平","achStreak":"连对5题","achNoHint":"无提示通关","achLvl3":"通过第3关","achDaily":"完成每日挑战","footNote":"LLL 系列开源软件之一——免费开源，由 Live Laugh Love 开发。","viewGithub":"在 GitHub 上查看","bestLabel":"最高","livesOut":"生命用完了——再试一次吧！","tryAgain":"再试一次","levelUp":"关卡完成！","levelUpSub":"进入下一关。","continueBtn":"继续","brand":"化学方程式配平","instruction":"调整系数，使两边原子数相等。","checkBtn":"检查","revealBtn":"显示答案","hintBtn":"提示","nextBtn":"下一个","levelLabel":"关卡","scoreLabel":"分数","streakLabel":"连胜","balanced":"已配平！","notBalanced":"还没配平——请检查下方的数字。","revealed":"这是配平后的方程式。","simplerTip":"（最简整数比得分更高）","rxnLabel":"反应类型","hintText":"从 {el} 开始——它出现在最少的化合物中。","explainLabel":"解题思路","explainText":"先配平 {el}，然后逐一调整其余元素。","answerLabel":"答案","levelComplete":"关卡完成！","combustion":"燃烧","synthesis":"化合","decomposition":"分解","single":"置换"},"zh-Hant":{"howTitle":"玩法","how1":"看方程式下方的原子數——每個都顯示 左 / 右。","how2":"用 − 和 + 按鈕調整每個化學式前的係數。","how3":"當所有數字都相等（全部綠色 ✓）時，按「檢查」。最簡比得分最高。","whyTitle":"為什麼要配平？","whyText":"化學反應中原子既不會產生也不會消失——只是重新排列。這就是質量守恆定律。配平後的方程式兩邊原子數相同，才能正確描述真實的反應。","rxnTitle":"反應類型","ptTitle":"本遊戲中的元素","ptAppears":"出現在","achTitle":"成就","dailyTitle":"每日挑戰","dailyPlay":"開始","dailyDone":"今日已完成 ✓","achFirst":"首次配平","achStreak":"連對5題","achNoHint":"無提示過關","achLvl3":"通過第3關","achDaily":"完成每日挑戰","footNote":"LLL 系列開源軟體之一——免費開源，由 Live Laugh Love 開發。","viewGithub":"在 GitHub 上查看","bestLabel":"最高","livesOut":"生命用完了——再試一次吧！","tryAgain":"再試一次","levelUp":"關卡完成！","levelUpSub":"進入下一關。","continueBtn":"繼續","brand":"化學方程式配平","instruction":"調整係數，使兩邊原子數相等。","checkBtn":"檢查","revealBtn":"顯示答案","hintBtn":"提示","nextBtn":"下一個","levelLabel":"關卡","scoreLabel":"分數","streakLabel":"連勝","balanced":"已配平！","notBalanced":"還沒配平——請檢查下方的數字。","revealed":"這是配平後的方程式。","simplerTip":"（最簡整數比得分更高）","rxnLabel":"反應類型","hintText":"從 {el} 開始——它出現在最少的化合物中。","explainLabel":"解題思路","explainText":"先配平 {el}，然後逐一調整其餘元素。","answerLabel":"答案","levelComplete":"關卡完成！","combustion":"燃燒","synthesis":"化合","decomposition":"分解","single":"置換"},"ko":{"howTitle":"게임 방법","how1":"식 아래의 원자 수를 보세요 — 각각 왼쪽 / 오른쪽 개수가 표시됩니다.","how2":"− 와 + 버튼으로 각 화학식 앞의 계수를 바꾸세요.","how3":"모든 개수가 일치하면(전부 초록 ✓) 확인을 누르세요. 가장 간단한 비가 최고점입니다.","whyTitle":"왜 균형을 맞출까요?","whyText":"화학 반응에서 원자는 생성되거나 사라지지 않고 재배열될 뿐입니다. 이것이 질량 보존의 법칙입니다. 균형 잡힌 식은 양쪽의 원자 수가 같아 실제 반응을 올바르게 나타냅니다.","rxnTitle":"반응 유형","ptTitle":"이 게임의 원소","ptAppears":"등장 화합물","achTitle":"업적","dailyTitle":"오늘의 도전","dailyPlay":"도전","dailyDone":"오늘 완료 ✓","achFirst":"첫 균형","achStreak":"5연속 정답","achNoHint":"힌트 없이 레벨 클리어","achLvl3":"레벨 3 클리어","achDaily":"데일리 완료","footNote":"LLL 시리즈 OSS의 하나 — 무료 오픈소스, Live Laugh Love 제작.","viewGithub":"GitHub에서 보기","bestLabel":"최고","livesOut":"목숨을 다 썼어요 — 다시 도전해 보세요!","tryAgain":"다시 시도","levelUp":"레벨 완료!","levelUpSub":"다음 레벨로 갑니다.","continueBtn":"계속","brand":"화학식 균형 맞추기","instruction":"양쪽 원자 수가 같도록 계수를 조정하세요.","checkBtn":"확인","revealBtn":"정답 보기","hintBtn":"힌트","nextBtn":"다음","levelLabel":"레벨","scoreLabel":"점수","streakLabel":"연속 정답","balanced":"균형 완성!","notBalanced":"아직 균형이 안 맞아요 — 아래 개수를 확인하세요.","revealed":"균형 잡힌 식입니다.","simplerTip":"(가장 간단한 정수비가 더 높은 점수)","rxnLabel":"반응 유형","hintText":"{el}부터 시작하세요 — 가장 적은 화합물에 나타납니다.","explainLabel":"푸는 방법","explainText":"먼저 {el}을 맞추고, 나머지 원소를 하나씩 조정하세요.","answerLabel":"정답","levelComplete":"레벨 완료!","combustion":"연소","synthesis":"화합","decomposition":"분해","single":"치환"},"ms":{"howTitle":"Cara bermain","how1":"Lihat kiraan atom di bawah persamaan — setiap satu menunjukkan kiri / kanan.","how2":"Guna butang − dan + untuk mengubah pekali di hadapan setiap formula.","how3":"Apabila semua kiraan sepadan (semua hijau ✓), tekan Semak. Nisbah paling ringkas dapat markah tertinggi.","whyTitle":"Kenapa perlu seimbang?","whyText":"Atom tidak dicipta atau dimusnahkan dalam tindak balas kimia — ia hanya disusun semula. Itulah hukum keabadian jisim. Persamaan seimbang menunjukkan bilangan atom yang sama di kedua-dua belah, jadi ia menggambarkan apa yang sebenarnya berlaku.","rxnTitle":"Jenis tindak balas","ptTitle":"Unsur dalam permainan ini","ptAppears":"Muncul dalam","achTitle":"Pencapaian","dailyTitle":"Cabaran harian","dailyPlay":"Main","dailyDone":"Selesai hari ini ✓","achFirst":"Imbangan pertama","achStreak":"5 berturut","achNoHint":"Tahap tanpa petunjuk","achLvl3":"Tahap 3 selesai","achDaily":"Harian selesai","footNote":"Sebahagian daripada LLL Series OSS — percuma dan sumber terbuka, dibina oleh Live Laugh Love.","viewGithub":"Lihat di GitHub","bestLabel":"Terbaik","livesOut":"Nyawa habis — cuba lagi!","tryAgain":"Cuba lagi","levelUp":"Tahap selesai!","levelUpSub":"Ke tahap seterusnya.","continueBtn":"Teruskan","brand":"Pengimbang Kimia","instruction":"Laraskan pekali supaya kedua-dua belah mempunyai atom yang sama.","checkBtn":"Semak","revealBtn":"Dedah","hintBtn":"Petunjuk","nextBtn":"Seterusnya","levelLabel":"Tahap","scoreLabel":"Markah","streakLabel":"Berturut","balanced":"Seimbang!","notBalanced":"Belum seimbang — semak kiraan di bawah.","revealed":"Ini persamaan yang seimbang.","simplerTip":"(nisbah nombor bulat paling ringkas dapat markah lebih)","rxnLabel":"Jenis tindak balas","hintText":"Mulakan dengan {el} — ia muncul dalam paling sedikit sebatian.","explainLabel":"Cara menyelesaikan","explainText":"Imbangkan {el} dahulu, kemudian laraskan unsur lain satu demi satu.","answerLabel":"Jawapan","levelComplete":"Tahap selesai!","combustion":"Pembakaran","synthesis":"Sintesis","decomposition":"Penguraian","single":"Penggantian tunggal"}};
 
-      var S = {
-        "ja": { brand: "\u5316\u5b66\u5f0f\u30d0\u30e9\u30f3\u30b9", instruction: "\u4e21\u8fba\u306e\u539f\u5b50\u6570\u304c\u7b49\u3057\u304f\u306a\u308b\u3088\u3046\u306b\u4fc2\u6570\u3092\u8abf\u6574\u3057\u3066\u304f\u3060\u3055\u3044\u3002", checkBtn: "\u78ba\u8a8d", revealBtn: "\u7b54\u3048\u3092\u898b\u308b", nextBtn: "\u6b21\u3078", levelLabel: "\u30ec\u30d9\u30eb", balanced: "\u30d0\u30e9\u30f3\u30b9\u304c\u53d6\u308c\u307e\u3057\u305f\uff01", notBalanced: "\u307e\u3060\u30d0\u30e9\u30f3\u30b9\u304c\u53d6\u308c\u3066\u3044\u307e\u305b\u3093\u3002\u8d64\u3044\u6570\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002", revealed: "\u3053\u308c\u304c\u30d0\u30e9\u30f3\u30b9\u306e\u53d6\u308c\u305f\u5f0f\u3067\u3059\u3002", simplerTip: "\uff08\u6700\u3082\u7c21\u5358\u306a\u6574\u6570\u6bd4\u304c\u9ad8\u5f97\u70b9\uff09", rxnLabel: "\u53cd\u5fdc\u306e\u7a2e\u985e", levelComplete: "\u30ec\u30d9\u30eb\u30af\u30ea\u30a2\uff01", combustion: "\u71c3\u713c", synthesis: "\u5316\u5408", decomposition: "\u5206\u89e3" },
-        "en": { brand: "Chem Balancer", instruction: "Adjust the coefficients so both sides have equal atoms.", checkBtn: "Check", revealBtn: "Reveal", nextBtn: "Next", levelLabel: "Level", balanced: "Balanced!", notBalanced: "Not balanced yet \u2014 check the highlighted counts.", revealed: "Here's the balanced equation.", simplerTip: "(tip: the simplest whole-number ratio scores more)", rxnLabel: "Reaction type", levelComplete: "Level complete!", combustion: "Combustion", synthesis: "Synthesis", decomposition: "Decomposition" },
-        "zh-Hans": { brand: "\u5316\u5b66\u65b9\u7a0b\u5f0f\u914d\u5e73", instruction: "\u8c03\u6574\u7cfb\u6570\uff0c\u4f7f\u4e24\u8fb9\u539f\u5b50\u6570\u76f8\u7b49\u3002", checkBtn: "\u68c0\u67e5", revealBtn: "\u663e\u793a\u7b54\u6848", nextBtn: "\u4e0b\u4e00\u4e2a", levelLabel: "\u5173\u5361", balanced: "\u5df2\u914d\u5e73\uff01", notBalanced: "\u8fd8\u6ca1\u914d\u5e73\u2014\u2014\u8bf7\u68c0\u67e5\u9ad8\u4eae\u7684\u6570\u5b57\u3002", revealed: "\u8fd9\u662f\u914d\u5e73\u540e\u7684\u65b9\u7a0b\u5f0f\u3002", simplerTip: "\uff08\u6700\u7b80\u6574\u6570\u6bd4\u5f97\u5206\u66f4\u9ad8\uff09", rxnLabel: "\u53cd\u5e94\u7c7b\u578b", levelComplete: "\u5173\u5361\u5b8c\u6210\uff01", combustion: "\u71c3\u70e7", synthesis: "\u5316\u5408", decomposition: "\u5206\u89e3" },
-        "zh-Hant": { brand: "\u5316\u5b78\u65b9\u7a0b\u5f0f\u914d\u5e73", instruction: "\u8abf\u6574\u4fc2\u6578\uff0c\u4f7f\u5169\u908a\u539f\u5b50\u6578\u76f8\u7b49\u3002", checkBtn: "\u6aa2\u67e5", revealBtn: "\u986f\u793a\u7b54\u6848", nextBtn: "\u4e0b\u4e00\u500b", levelLabel: "\u95dc\u5361", balanced: "\u5df2\u914d\u5e73\uff01", notBalanced: "\u9084\u6c92\u914d\u5e73\u2014\u2014\u8acb\u6aa2\u67e5\u6a19\u793a\u7684\u6578\u5b57\u3002", revealed: "\u9019\u662f\u914d\u5e73\u5f8c\u7684\u65b9\u7a0b\u5f0f\u3002", simplerTip: "\uff08\u6700\u7c21\u6574\u6578\u6bd4\u5f97\u5206\u66f4\u9ad8\uff09", rxnLabel: "\u53cd\u61c9\u985e\u578b", levelComplete: "\u95dc\u5361\u5b8c\u6210\uff01", combustion: "\u71c3\u71d2", synthesis: "\u5316\u5408", decomposition: "\u5206\u89e3" },
-        "ko": { brand: "\ud654\ud559\uc2dd \uade0\ud615 \ub9de\ucd94\uae30", instruction: "\uc591\ucabd \uc6d0\uc790 \uc218\uac00 \uac19\ub3c4\ub85d \uacc4\uc218\ub97c \uc870\uc815\ud558\uc138\uc694.", checkBtn: "\ud655\uc778", revealBtn: "\uc815\ub2f5 \ubcf4\uae30", nextBtn: "\ub2e4\uc74c", levelLabel: "\ub808\ubca8", balanced: "\uade0\ud615 \uc644\uc131!", notBalanced: "\uc544\uc9c1 \uade0\ud615\uc774 \uc548 \ub9de\uc544\uc694 \u2014 \uac15\uc870\ub41c \uac1c\uc218\ub97c \ud655\uc778\ud558\uc138\uc694.", revealed: "\uade0\ud615 \uc7a1\ud78c \uc2dd\uc785\ub2c8\ub2e4.", simplerTip: "(\uac00\uc7a5 \uac04\ub2e8\ud55c \uc815\uc218\ube44\uac00 \ub354 \ub192\uc740 \uc810\uc218)", rxnLabel: "\ubc18\uc751 \uc720\ud615", levelComplete: "\ub808\ubca8 \uc644\ub8cc!", combustion: "\uc5f0\uc18c", synthesis: "\ud654\ud569", decomposition: "\ubd84\ud574" },
-        "ms": { brand: "Pengimbang Kimia", instruction: "Laraskan pekali supaya kedua-dua belah mempunyai atom yang sama.", checkBtn: "Semak", revealBtn: "Dedah", nextBtn: "Seterusnya", levelLabel: "Tahap", balanced: "Seimbang!", notBalanced: "Belum seimbang \u2014 semak kiraan yang ditandakan.", revealed: "Ini persamaan yang seimbang.", simplerTip: "(petua: nisbah nombor bulat paling ringkas dapat markah lebih)", rxnLabel: "Jenis tindak balas", levelComplete: "Tahap selesai!", combustion: "Pembakaran", synthesis: "Sintesis", decomposition: "Penguraian" }
-      };
+var ELEMENTS={"H":{"z":1,"n":{"en":"Hydrogen","ja":"水素","zh-Hans":"氢","zh-Hant":"氫","ko":"수소","ms":"Hidrogen"}},"Li":{"z":3,"n":{"en":"Lithium","ja":"リチウム","zh-Hans":"锂","zh-Hant":"鋰","ko":"리튬","ms":"Litium"}},"C":{"z":6,"n":{"en":"Carbon","ja":"炭素","zh-Hans":"碳","zh-Hant":"碳","ko":"탄소","ms":"Karbon"}},"N":{"z":7,"n":{"en":"Nitrogen","ja":"窒素","zh-Hans":"氮","zh-Hant":"氮","ko":"질소","ms":"Nitrogen"}},"O":{"z":8,"n":{"en":"Oxygen","ja":"酸素","zh-Hans":"氧","zh-Hant":"氧","ko":"산소","ms":"Oksigen"}},"Na":{"z":11,"n":{"en":"Sodium","ja":"ナトリウム","zh-Hans":"钠","zh-Hant":"鈉","ko":"나트륨","ms":"Natrium"}},"Mg":{"z":12,"n":{"en":"Magnesium","ja":"マグネシウム","zh-Hans":"镁","zh-Hant":"鎂","ko":"마그네슘","ms":"Magnesium"}},"Al":{"z":13,"n":{"en":"Aluminium","ja":"アルミニウム","zh-Hans":"铝","zh-Hant":"鋁","ko":"알루미늄","ms":"Aluminium"}},"Cl":{"z":17,"n":{"en":"Chlorine","ja":"塩素","zh-Hans":"氯","zh-Hant":"氯","ko":"염소","ms":"Klorin"}},"K":{"z":19,"n":{"en":"Potassium","ja":"カリウム","zh-Hans":"钾","zh-Hant":"鉀","ko":"칼륨","ms":"Kalium"}},"Ca":{"z":20,"n":{"en":"Calcium","ja":"カルシウム","zh-Hans":"钙","zh-Hant":"鈣","ko":"칼슘","ms":"Kalsium"}},"Fe":{"z":26,"n":{"en":"Iron","ja":"鉄","zh-Hans":"铁","zh-Hant":"鐵","ko":"철","ms":"Ferum"}},"Zn":{"z":30,"n":{"en":"Zinc","ja":"亜鉛","zh-Hans":"锌","zh-Hant":"鋅","ko":"아연","ms":"Zink"}}};
+  (function () {
+    "use strict";
 
-      var css = getComputedStyle(document.documentElement);
-      function tok(n,f){var v=css.getPropertyValue(n).trim();return v||f;}
-      var OK = "#0f6e56", INK = tok("--ink","#222220"), MUT = tok("--muted","#6f6f6a");
+    var eqEl=document.getElementById("equation"), tallyEl=document.getElementById("tally");
+    var checkBtn=document.getElementById("checkBtn"), revealBtn=document.getElementById("revealBtn");
+    var hintBtn=document.getElementById("hintBtn"), nextBtn=document.getElementById("nextBtn");
+    var hintText=document.getElementById("hintText");
+    var result=document.getElementById("result"), verdict=document.getElementById("verdict");
+    var answerEq=document.getElementById("answerEq");
+    var rxnV=document.getElementById("rxnV"), rxnRow=document.getElementById("rxnRow");
+    var explainV=document.getElementById("explainV"), explainRow=document.getElementById("explainRow");
+    var levelV=document.getElementById("levelV"), scoreV=document.getElementById("scoreV");
+    var streakV=document.getElementById("streakV"), progressBar=document.getElementById("progressBar");
+    var bestV=document.getElementById("bestV"), livesEl=document.getElementById("lives");
+    var navRight=document.getElementById("navRight");
 
-      function A(o){return o;}
-      var LEVELS = [
-        [
-          { L:[{f:"H\u2082",a:{H:2}},{f:"O\u2082",a:{O:2}}], R:[{f:"H\u2082O",a:{H:2,O:1}}], ans:[2,1,2], rxn:"synthesis" },
-          { L:[{f:"N\u2082",a:{N:2}},{f:"H\u2082",a:{H:2}}], R:[{f:"NH\u2083",a:{N:1,H:3}}], ans:[1,3,2], rxn:"synthesis" },
-          { L:[{f:"H\u2082",a:{H:2}},{f:"Cl\u2082",a:{Cl:2}}], R:[{f:"HCl",a:{H:1,Cl:1}}], ans:[1,1,2], rxn:"synthesis" },
-          { L:[{f:"Na",a:{Na:1}},{f:"Cl\u2082",a:{Cl:2}}], R:[{f:"NaCl",a:{Na:1,Cl:1}}], ans:[2,1,2], rxn:"synthesis" }
-        ],
-        [
-          { L:[{f:"CH\u2084",a:{C:1,H:4}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[1,2,1,2], rxn:"combustion" },
-          { L:[{f:"H\u2082O\u2082",a:{H:2,O:2}}], R:[{f:"H\u2082O",a:{H:2,O:1}},{f:"O\u2082",a:{O:2}}], ans:[2,2,1], rxn:"decomposition" },
-          { L:[{f:"KClO\u2083",a:{K:1,Cl:1,O:3}}], R:[{f:"KCl",a:{K:1,Cl:1}},{f:"O\u2082",a:{O:2}}], ans:[2,2,3], rxn:"decomposition" },
-          { L:[{f:"Al",a:{Al:1}},{f:"O\u2082",a:{O:2}}], R:[{f:"Al\u2082O\u2083",a:{Al:2,O:3}}], ans:[4,3,2], rxn:"synthesis" }
-        ],
-        [
-          { L:[{f:"C\u2083H\u2088",a:{C:3,H:8}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[1,5,3,4], rxn:"combustion" },
-          { L:[{f:"Fe",a:{Fe:1}},{f:"O\u2082",a:{O:2}}], R:[{f:"Fe\u2082O\u2083",a:{Fe:2,O:3}}], ans:[4,3,2], rxn:"synthesis" },
-          { L:[{f:"C\u2082H\u2086",a:{C:2,H:6}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[2,7,4,6], rxn:"combustion" },
-          { L:[{f:"C\u2086H\u2081\u2082O\u2086",a:{C:6,H:12,O:6}},{f:"O\u2082",a:{O:2}}], R:[{f:"CO\u2082",a:{C:1,O:2}},{f:"H\u2082O",a:{H:2,O:1}}], ans:[1,6,6,6], rxn:"combustion" }
-        ]
-      ];
+    function elName(sym){
+      var e=ELEMENTS[sym]; if(!e) return sym;
+      return e.n[LLL_I18N.lang()] || e.n.en;
+    }
 
-      var eqEl=document.getElementById("equation"), tallyEl=document.getElementById("tally");
-      var checkBtn=document.getElementById("checkBtn"), revealBtn=document.getElementById("revealBtn"), nextBtn=document.getElementById("nextBtn");
-      var result=document.getElementById("result"), verdict=document.getElementById("verdict"), rxnV=document.getElementById("rxnV"), rxnRow=document.getElementById("rxn");
-      var levelV=document.getElementById("levelV"), scoreV=document.getElementById("scoreV"), streakV=document.getElementById("streakV"), progressBar=document.getElementById("progressBar");
+    if (window.LLL_THEME && LLL_THEME.button) navRight.appendChild(LLL_THEME.button());
+    var langHost=document.createElement("div");
+    navRight.appendChild(langHost);
 
-      var lv=0, qi=0, score=0, streak=0, done=false, coefs=[], species=[], cur=null;
+    var lv=0, qi=0, score=0, streak=0, done=false, hinted=false, coefs=[], species=[], cur=null;
+    var MAX_LIVES=3, lives=MAX_LIVES, best=0;
 
-      LLL_I18N.init(S, { switcherHost: document.getElementById("langSlot"), onChange: function(){ if(cur) render(); } });
+    function safeGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function safeSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 
-      function gcdArr(a){function g(x,y){return y?g(y,x%y):x;}return a.reduce(function(p,c){return g(p,c);});}
+    best = parseInt(safeGet("lll_chem_best")||"0",10) || 0;
 
-      function counts(){
-        var Lc={},Rc={};
-        species.forEach(function(o,gi){
-          var t=o.side==="L"?Lc:Rc;
-          for(var el in o.sp.a){ t[el]=(t[el]||0)+o.sp.a[el]*coefs[gi]; }
-        });
-        return {L:Lc,R:Rc};
+    function renderLives(){
+      livesEl.innerHTML="";
+      for(var i=0;i<MAX_LIVES;i++){
+        var h=document.createElement("span");
+        h.textContent="\u2665";
+        if(i>=lives) h.className="lost";
+        livesEl.appendChild(h);
       }
+    }
+    function renderBest(){ bestV.textContent=best; }
+    function bumpBest(){ if(score>best){ best=score; safeSet("lll_chem_best",String(best)); renderBest(); } }
 
-      function chip(sp,gi){
-        var w=document.createElement("div"); w.className="sp";
-        var m=document.createElement("button"); m.className="step"; m.textContent="\u2212"; m.setAttribute("aria-label","decrease");
-        var n=document.createElement("span"); n.className="coef"; n.textContent=coefs[gi];
-        var p=document.createElement("button"); p.className="step"; p.textContent="+"; p.setAttribute("aria-label","increase");
-        var f=document.createElement("span"); f.className="formula"; f.textContent=sp.f;
-        m.onclick=function(){ if(done)return; if(coefs[gi]>1){coefs[gi]--; n.textContent=coefs[gi]; renderTally();} };
-        p.onclick=function(){ if(done)return; if(coefs[gi]<20){coefs[gi]++; n.textContent=coefs[gi]; renderTally();} };
-        w.appendChild(m); w.appendChild(n); w.appendChild(p); w.appendChild(f);
-        return w;
+    var uiReady=false;
+    LLL_I18N.init(S, { switcherHost: langHost, onChange: function(){ if(cur) redraw(); if(uiReady){ renderAch(); renderDaily(); ptInfo.textContent=""; } } });
+
+    function gcdArr(a){function g(x,y){return y?g(y,x%y):x;}return a.reduce(function(p,c){return g(p,c);});}
+
+    function counts(){
+      var Lc={},Rc={};
+      species.forEach(function(o,gi){
+        var t=o.side==="L"?Lc:Rc;
+        for(var el in o.sp.a){ t[el]=(t[el]||0)+o.sp.a[el]*coefs[gi]; }
+      });
+      return {L:Lc,R:Rc};
+    }
+
+    function eqString(cs){
+      var parts=[], i=0;
+      cur.L.forEach(function(s,k){ if(k) parts.push("+"); parts.push((cs[i]>1?cs[i]:"")+s.f); i++; });
+      parts.push("\u2192");
+      cur.R.forEach(function(s,k){ if(k) parts.push("+"); parts.push((cs[i]>1?cs[i]:"")+s.f); i++; });
+      return parts.join(" ");
+    }
+
+    function chip(sp,gi){
+      var w=document.createElement("div"); w.className="sp";
+      var m=document.createElement("button"); m.className="step"; m.textContent="\u2212"; m.setAttribute("aria-label","decrease");
+      var n=document.createElement("span"); n.className="coef"; n.textContent=coefs[gi];
+      var p=document.createElement("button"); p.className="step"; p.textContent="+"; p.setAttribute("aria-label","increase");
+      var f=document.createElement("span"); f.className="formula"; f.textContent=sp.f;
+      m.onclick=function(){ if(done)return; if(coefs[gi]>1){coefs[gi]--; n.textContent=coefs[gi]; renderTally();} };
+      p.onclick=function(){ if(done)return; if(coefs[gi]<20){coefs[gi]++; n.textContent=coefs[gi]; renderTally();} };
+      w.appendChild(m); w.appendChild(n); w.appendChild(p); w.appendChild(f);
+      return w;
+    }
+    function sep(t){var s=document.createElement("span"); s.className="sep"; s.textContent=t; return s;}
+
+    function drawEquation(){
+      eqEl.innerHTML=""; var gi=0;
+      cur.L.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
+      eqEl.appendChild(sep("\u2192"));
+      cur.R.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
+    }
+
+    function render(){
+      cur=LEVELS[lv][qi];
+      species=[]; coefs=[];
+      cur.L.forEach(function(s){species.push({sp:s,side:"L"});});
+      cur.R.forEach(function(s){species.push({sp:s,side:"R"});});
+      species.forEach(function(){coefs.push(1);});
+      done=false; hinted=false;
+      hintText.textContent="";
+      result.classList.add("hidden");
+      checkBtn.style.display="block"; revealBtn.style.display="block"; hintBtn.style.display="block";
+      levelV.textContent=(lv+1);
+      progressBar.style.width=((qi/LEVELS[lv].length)*100)+"%";
+      renderLives(); renderBest();
+      drawEquation(); renderTally();
+    }
+
+    /* Re-render on language change without losing progress. */
+    function redraw(){
+      drawEquation(); renderTally();
+      if(hinted) hintText.textContent=LLL_I18N.t("hintText").replace("{el}",cur.first);
+      if(done){ rxnV.textContent=LLL_I18N.t(cur.rxn);
+                explainV.textContent=LLL_I18N.t("explainText").replace("{el}",cur.first); }
+    }
+
+    function renderTally(){
+      var c=counts(), els={}, k;
+      for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
+      tallyEl.innerHTML="";
+      Object.keys(els).forEach(function(el){
+        var l=c.L[el]||0, r=c.R[el]||0, ok=(l===r);
+        var ch=document.createElement("button");
+        ch.type="button";
+        ch.className="tchip"+(ok?" ok":"");
+        ch.textContent=el+" "+l+" / "+r+(ok?"  \u2713":"");
+        if(ELEMENTS[el]){
+          ch.title=elName(el);
+          ch.onclick=function(){ if(!done) hintText.textContent = el + " \u2014 " + elName(el); };
+        }
+        tallyEl.appendChild(ch);
+      });
+    }
+
+    function finish(pts, msg, col, showAnswer){
+      done=true; score+=pts;
+      bumpBest();
+      hintText.textContent = "";   // clear any stale "not balanced" / hint line
+      scoreV.textContent=score; streakV.textContent=streak;
+      verdict.textContent=msg; verdict.style.color=col;
+      answerEq.textContent = showAnswer ? eqString(cur.ans) : "";
+      rxnV.textContent=LLL_I18N.t(cur.rxn);
+      explainV.textContent=LLL_I18N.t("explainText").replace("{el}",cur.first);
+      rxnRow.style.display="block"; explainRow.style.display="block";
+      checkBtn.style.display="none"; revealBtn.style.display="none"; hintBtn.style.display="none";
+      result.classList.remove("hidden");
+    }
+
+    hintBtn.onclick=function(){
+      if(done) return;
+      hinted=true; hintsThisLevel++;
+      hintText.textContent=LLL_I18N.t("hintText").replace("{el}",cur.first);
+      hintBtn.style.display="none";
+    };
+
+    checkBtn.onclick=function(){
+      if(done)return;
+      var c=counts(), els={}, k, bal=true;
+      for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
+      for(var el in els){ if((c.L[el]||0)!==(c.R[el]||0)){bal=false;break;} }
+      if(bal){
+        var simplest=gcdArr(coefs)===1;
+        var pts=(simplest?100:60) - (hinted?20:0);
+        if(pts<0) pts=0;
+        streak++;
+        unlock("first");
+        if(streak>=5) unlock("streak5");
+        if(dailyMode){ safeSet("lll_chem_daily", todayKey()); unlock("daily"); renderDaily(); }
+        finish(pts, LLL_I18N.t("balanced")+" +"+pts+(simplest?"":" "+LLL_I18N.t("simplerTip")), "#0f6e56", true);
+      } else {
+        streak=0; streakV.textContent=streak;
+        lives--; renderLives();
+        if(lives<=0){ gameOver(); return; }
+        hintText.textContent=LLL_I18N.t("notBalanced");
+        setTimeout(function(){ if(!done && !hinted) hintText.textContent=""; }, 2200);
       }
-      function sep(t){var s=document.createElement("span"); s.className="sep"; s.textContent=t; return s;}
+    };
 
-      function render(){
-        cur=LEVELS[lv][qi];
-        species=[]; coefs=[];
-        cur.L.forEach(function(s){species.push({sp:s,side:"L"});});
-        cur.R.forEach(function(s){species.push({sp:s,side:"R"});});
-        species.forEach(function(){coefs.push(1);});
-        eqEl.innerHTML=""; var gi=0;
-        cur.L.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
-        eqEl.appendChild(sep("\u2192"));
-        cur.R.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
-        done=false; result.classList.add("hidden");
-        checkBtn.style.display="block"; revealBtn.style.display="block";
-        levelV.textContent=(lv+1);
-        progressBar.style.width=((qi/LEVELS[lv].length)*100)+"%";
-        renderTally();
+    function gameOver(){
+      done=true;
+      bumpBest();
+      hintText.textContent="";
+      verdict.textContent=LLL_I18N.t("livesOut");
+      verdict.style.color=getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()||"#222220";
+      answerEq.textContent=eqString(cur.ans);
+      rxnV.textContent=LLL_I18N.t(cur.rxn);
+      explainV.textContent=LLL_I18N.t("explainText").replace("{el}",cur.first);
+      rxnRow.style.display="block"; explainRow.style.display="block";
+      checkBtn.style.display="none"; revealBtn.style.display="none"; hintBtn.style.display="none";
+      nextBtn.textContent=LLL_I18N.t("tryAgain");
+      nextBtn.setAttribute("data-restart","1");
+      result.classList.remove("hidden");
+    }
+
+    revealBtn.onclick=function(){
+      if(done)return;
+      coefs=cur.ans.slice(); streak=0;
+      eqEl.querySelectorAll(".coef").forEach(function(n,i){ n.textContent=coefs[i]; });
+      renderTally();
+      finish(0, LLL_I18N.t("revealed"), getComputedStyle(document.documentElement).getPropertyValue("--muted").trim()||"#6f6f6a", true);
+    };
+
+    nextBtn.onclick=function(){
+      if(dailyMode){
+        dailyMode=false;
+        if(savedPos){ lv=savedPos.lv; qi=savedPos.qi; savedPos=null; }
+        render(); return;
       }
-
-      function renderTally(){
-        var c=counts(), els={}, k;
-        for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
-        tallyEl.innerHTML="";
-        Object.keys(els).forEach(function(el){
-          var l=c.L[el]||0, r=c.R[el]||0, ok=(l===r);
-          var chip=document.createElement("span");
-          chip.className="tchip"+(ok?" ok":"");
-          chip.textContent=el+" "+l+" / "+r+(ok?"  \u2713":"");
-          tallyEl.appendChild(chip);
-        });
-      }
-
-      function finish(pts, msg, col){
-        done=true; score+=pts;
+      if(nextBtn.getAttribute("data-restart")==="1"){
+        nextBtn.removeAttribute("data-restart");
+        nextBtn.textContent=LLL_I18N.t("nextBtn");
+        score=0; streak=0; lives=MAX_LIVES; lv=0; qi=0;
         scoreV.textContent=score; streakV.textContent=streak;
-        verdict.textContent=msg; verdict.style.color=col;
-        rxnV.textContent=LLL_I18N.t(cur.rxn);
-        rxnRow.style.display="block";
-        checkBtn.style.display="none"; revealBtn.style.display="none";
-        result.classList.remove("hidden");
+        render(); return;
       }
-
-      checkBtn.onclick=function(){
-        if(done)return;
-        var c=counts(), els={}, k, bal=true;
-        for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
-        for(var el in els){ if((c.L[el]||0)!==(c.R[el]||0)){bal=false;break;} }
-        if(bal){
-          var simplest=gcdArr(coefs)===1;
-          var pts=simplest?100:60; streak++;
-          finish(pts, LLL_I18N.t("balanced")+" +"+pts+(simplest?"":" "+LLL_I18N.t("simplerTip")), OK);
-        } else {
-          streak=0; streakV.textContent=streak;
-          verdict.textContent=LLL_I18N.t("notBalanced"); verdict.style.color=INK;
-          rxnRow.style.display="none"; nextBtn.style.display="none";
-          result.classList.remove("hidden");
-          setTimeout(function(){ if(!done){ result.classList.add("hidden"); nextBtn.style.display="block"; } }, 1600);
-        }
-      };
-
-      revealBtn.onclick=function(){
-        if(done)return;
-        coefs=cur.ans.slice(); streak=0;
-        eqEl.querySelectorAll(".coef").forEach(function(n,i){ n.textContent=coefs[i]; });
-        renderTally();
-        finish(0, LLL_I18N.t("revealed"), MUT);
-      };
-
-      nextBtn.onclick=function(){
-        qi++;
-        if(qi>=LEVELS[lv].length){
-          qi=0; lv=(lv+1)%LEVELS.length;
-        }
-        render();
-      };
-
+      qi++;
+      if(qi>=LEVELS[lv].length){
+        if(hintsThisLevel===0) unlock("nohint");
+        if(lv===2) unlock("lvl3");
+        hintsThisLevel=0;
+        qi=0; lives=MAX_LIVES;                 // fresh lives each level
+        lv=(lv+1)%LEVELS.length;
+      }
       render();
-    })();
+    };
+
+
+    /* ================= Periodic table strip ================= */
+    var ptGrid=document.getElementById("ptGrid"), ptInfo=document.getElementById("ptInfo");
+
+    function compoundsWith(sym){
+      var seen={}, out=[];
+      LEVELS.forEach(function(lvl){ lvl.forEach(function(q){
+        q.L.concat(q.R).forEach(function(sp){
+          if(sp.a[sym] && !seen[sp.f]){ seen[sp.f]=1; out.push(sp.f); }
+        });
+      });});
+      return out.slice(0,5);
+    }
+
+    function buildPT(){
+      ptGrid.innerHTML="";
+      Object.keys(ELEMENTS).forEach(function(sym){
+        var b=document.createElement("button");
+        b.type="button";
+        b.innerHTML='<span class="sym">'+sym+'</span><span class="num">'+ELEMENTS[sym].z+'</span>';
+        b.onclick=function(){
+          ptInfo.textContent = sym+" \u00b7 "+elName(sym)+" \u00b7 #"+ELEMENTS[sym].z+
+            " \u2014 "+LLL_I18N.t("ptAppears")+": "+compoundsWith(sym).join(", ");
+        };
+        ptGrid.appendChild(b);
+      });
+    }
+
+    /* ================= Achievements ================= */
+    var achRow=document.getElementById("achRow");
+    var ACH=[
+      {id:"first",  icon:"\u2697\ufe0f", key:"achFirst"},
+      {id:"streak5",icon:"\ud83d\udd25", key:"achStreak"},
+      {id:"nohint", icon:"\ud83c\udfaf", key:"achNoHint"},
+      {id:"lvl3",   icon:"\ud83c\udfc6", key:"achLvl3"},
+      {id:"daily",  icon:"\ud83d\udcc5", key:"achDaily"}
+    ];
+    var achState={};
+    try{ achState=JSON.parse(safeGet("lll_chem_ach")||"{}"); }catch(e){ achState={}; }
+    var hintsThisLevel=0;
+
+    function renderAch(){
+      achRow.innerHTML="";
+      ACH.forEach(function(a){
+        var el=document.createElement("span");
+        el.className="achb"+(achState[a.id]?"":" locked");
+        el.textContent=a.icon+" "+LLL_I18N.t(a.key);
+        achRow.appendChild(el);
+      });
+    }
+    function unlock(id){
+      if(achState[id]) return;
+      achState[id]=1;
+      safeSet("lll_chem_ach", JSON.stringify(achState));
+      renderAch();
+    }
+
+    /* ================= Daily challenge ================= */
+    var dailyCard=document.getElementById("dailyCard"), dailyBtn=document.getElementById("dailyBtn");
+    var dailySub=document.getElementById("dailySub");
+    var dailyMode=false, savedPos=null;
+    var FLAT=[]; LEVELS.forEach(function(l){ l.forEach(function(q){ FLAT.push(q); }); });
+
+    function todayKey(){
+      var d=new Date();
+      return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+    }
+    function dailyIndex(){
+      var d=new Date();
+      var n=d.getFullYear()*372+(d.getMonth())*31+d.getDate();
+      return n % FLAT.length;
+    }
+    function dailyDone(){ return safeGet("lll_chem_daily")===todayKey(); }
+
+    function renderDaily(){
+      dailySub.textContent=todayKey();
+      if(dailyDone()){
+        dailyCard.classList.add("done");
+        dailyBtn.disabled=true;
+        dailyBtn.textContent=LLL_I18N.t("dailyDone");
+      } else {
+        dailyCard.classList.remove("done");
+        dailyBtn.disabled=false;
+        dailyBtn.textContent=LLL_I18N.t("dailyPlay");
+      }
+    }
+
+    dailyBtn.onclick=function(){
+      if(dailyMode || dailyDone()) return;
+      dailyMode=true; savedPos={lv:lv, qi:qi};
+      cur=FLAT[dailyIndex()];
+      species=[]; coefs=[];
+      cur.L.forEach(function(sp){species.push({sp:sp,side:"L"});});
+      cur.R.forEach(function(sp){species.push({sp:sp,side:"R"});});
+      species.forEach(function(){coefs.push(1);});
+      done=false; hinted=false; hintText.textContent="";
+      result.classList.add("hidden");
+      checkBtn.style.display="block"; revealBtn.style.display="block"; hintBtn.style.display="block";
+      drawEquation(); renderTally();
+      window.scrollTo({top:0, behavior:"smooth"});
+    };
+
+    buildPT(); renderAch(); renderDaily();
+    uiReady=true;
+    render();
+  })();
   </script>
 </body>
 </html>
