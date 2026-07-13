@@ -26,7 +26,12 @@
   .instruction { font-size: 13px; color: var(--muted); text-align: center; margin: 0; }
 
   .eqcard { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; }
-  .equation { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 8px; }
+  .equation { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; }
+  .side { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px 8px; }
+  .arrow {
+    font-size: 22px; color: var(--muted); margin-right: 4px;
+    display: inline-flex; align-items: center;
+  }
   .sp { display: flex; align-items: center; gap: 6px; }
   .sp .coef { min-width: 18px; text-align: center; font-size: 22px; font-weight: 600; }
   .sp .formula { font-size: 24px; margin-left: 2px; }
@@ -44,6 +49,37 @@
   .massv { font-family: var(--mono); font-size: 13px; }
   .massv .eq { color: #0f6e56; font-weight: 700; }
   :root[data-theme="dark"] .massv .eq { color: #6fd7b4; }
+
+  .scale {
+    display: flex; justify-content: center; color: var(--muted); margin-bottom: 6px;
+  }
+  .scale.ok { color: #0f6e56; }
+  :root[data-theme="dark"] .scale.ok { color: #6fd7b4; }
+  #beam { transition: transform .35s cubic-bezier(.34,1.3,.5,1); }
+
+  @keyframes chipPop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.18); }
+    100% { transform: scale(1); }
+  }
+  .tchip.pop { animation: chipPop .32s ease; }
+
+  /* confetti */
+  #confetti {
+    position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50;
+  }
+  .conf {
+    position: absolute; width: 8px; height: 8px; top: -12px; will-change: transform, opacity;
+    animation: confFall linear forwards;
+  }
+  @keyframes confFall {
+    to { transform: translateY(105vh) rotate(720deg); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #beam { transition: none; }
+    .tchip.pop { animation: none; }
+    .conf { display: none; }
+  }
 
   .tally { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 22px; }
   .tchip {
@@ -140,6 +176,22 @@
   }
   .pt button:hover { border-color: var(--accent); }
   .pt button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .pt button { position: relative; overflow: hidden; }
+  .pt button::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+    background: var(--cat, var(--border));
+  }
+  .cat-alkali     { --cat: #e8845a; }
+  .cat-alkaline   { --cat: #e0b13c; }
+  .cat-transition { --cat: #6aa9d8; }
+  .cat-post       { --cat: #8aa1a8; }
+  .cat-nonmetal   { --cat: #63b57e; }
+  .cat-halogen    { --cat: #b57ec6; }
+
+  .pt-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 12px; }
+  .pt-legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .pt-legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--cat, var(--border)); display: inline-block; }
+
   .pt .sym { font-size: 17px; font-weight: 700; display: block; }
   .pt .num { font-size: 10px; color: var(--muted); display: block; margin-top: 1px; }
   .pt-info {
@@ -206,6 +258,19 @@
     <p class="instruction" data-i18n="instruction">Adjust the coefficients so both sides have equal atoms.</p>
 
     <div class="eqcard">
+      <div class="scale" id="scale" aria-hidden="true">
+        <svg viewBox="0 0 120 60" width="108" height="54">
+          <line x1="60" y1="8" x2="60" y2="50" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <polygon points="52,52 68,52 60,44" fill="currentColor"/>
+          <g id="beam" style="transform-origin:60px 12px;">
+            <line x1="20" y1="12" x2="100" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="20" y1="12" x2="20" y2="24" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="100" y1="12" x2="100" y2="24" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M12 24 h16 l-3 7 h-10 z" fill="none" stroke="currentColor" stroke-width="1.2"/>
+            <path d="M92 24 h16 l-3 7 h-10 z" fill="none" stroke="currentColor" stroke-width="1.2"/>
+          </g>
+        </svg>
+      </div>
       <div class="equation" id="equation"></div>
       <div class="tally" id="tally"></div>
       <p class="statekey" data-i18n="aboutState">(s) solid · (l) liquid · (g) gas · (aq) dissolved in water</p>
@@ -275,6 +340,7 @@
       <h2 data-i18n="ptTitle">Elements in this game</h2>
       <div class="pt" id="ptGrid"></div>
       <div class="pt-info" id="ptInfo"></div>
+      <div class="pt-legend" id="ptLegend"></div>
     </div>
 
     <!-- Achievements -->
@@ -293,14 +359,17 @@
     </div>
   </div>
 
+  <div id="confetti"></div>
+
   <script src="shared/theme.js"></script>
   <script src="shared/i18n.js"></script>
   <script>
   var LEVELS=[[{"L":[{"f":"H₂","a":{"H":2},"s":"g","m":2.016},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[2,1,2],"rxn":"synthesis","first":"H","id":"water"},{"L":[{"f":"N₂","a":{"N":2},"s":"g","m":28.014},{"f":"H₂","a":{"H":2},"s":"g","m":2.016}],"R":[{"f":"NH₃","a":{"N":1,"H":3},"s":"g","m":17.031}],"ans":[1,3,2],"rxn":"synthesis","first":"N","id":"ammonia"},{"L":[{"f":"H₂","a":{"H":2},"s":"g","m":2.016},{"f":"Cl₂","a":{"Cl":2},"s":"g","m":70.9}],"R":[{"f":"HCl","a":{"H":1,"Cl":1},"s":"g","m":36.458}],"ans":[1,1,2],"rxn":"synthesis","first":"H","id":"hcl"},{"L":[{"f":"Na","a":{"Na":1},"s":"s","m":22.99},{"f":"Cl₂","a":{"Cl":2},"s":"g","m":70.9}],"R":[{"f":"NaCl","a":{"Na":1,"Cl":1},"s":"s","m":58.44}],"ans":[2,1,2],"rxn":"synthesis","first":"Cl","id":"salt"},{"L":[{"f":"K","a":{"K":1},"s":"s","m":39.098},{"f":"Cl₂","a":{"Cl":2},"s":"g","m":70.9}],"R":[{"f":"KCl","a":{"K":1,"Cl":1},"s":"s","m":74.548}],"ans":[2,1,2],"rxn":"synthesis","first":"Cl","id":"kcl"},{"L":[{"f":"Mg","a":{"Mg":1},"s":"s","m":24.305},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"MgO","a":{"Mg":1,"O":1},"s":"s","m":40.304}],"ans":[2,1,2],"rxn":"synthesis","first":"O","id":"mgo"},{"L":[{"f":"Ca","a":{"Ca":1},"s":"s","m":40.078},{"f":"Cl₂","a":{"Cl":2},"s":"g","m":70.9}],"R":[{"f":"CaCl₂","a":{"Ca":1,"Cl":2},"s":"s","m":110.978}],"ans":[1,1,1],"rxn":"synthesis","first":"Ca","id":"cacl2"},{"L":[{"f":"Li","a":{"Li":1},"s":"s","m":6.94},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"Li₂O","a":{"Li":2,"O":1},"s":"s","m":29.879}],"ans":[4,1,2],"rxn":"synthesis","first":"O","id":"li2o"}],[{"L":[{"f":"CH₄","a":{"C":1,"H":4},"s":"g","m":16.043},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[1,2,1,2],"rxn":"combustion","first":"C","id":"methane"},{"L":[{"f":"H₂O₂","a":{"H":2,"O":2},"s":"aq","m":34.014}],"R":[{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"ans":[2,2,1],"rxn":"decomposition","first":"O","id":"peroxide"},{"L":[{"f":"KClO₃","a":{"K":1,"Cl":1,"O":3},"s":"s","m":122.545}],"R":[{"f":"KCl","a":{"K":1,"Cl":1},"s":"s","m":74.548},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"ans":[2,2,3],"rxn":"decomposition","first":"O","id":"kclo3"},{"L":[{"f":"Al","a":{"Al":1},"s":"s","m":26.982},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"Al₂O₃","a":{"Al":2,"O":3},"s":"s","m":101.961}],"ans":[4,3,2],"rxn":"synthesis","first":"Al","id":"alumina"},{"L":[{"f":"Fe","a":{"Fe":1},"s":"s","m":55.845},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"Fe₂O₃","a":{"Fe":2,"O":3},"s":"s","m":159.687}],"ans":[4,3,2],"rxn":"synthesis","first":"Fe","id":"rust"},{"L":[{"f":"N₂O₅","a":{"N":2,"O":5},"s":"g","m":108.009}],"R":[{"f":"NO₂","a":{"N":1,"O":2},"s":"g","m":46.005},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"ans":[2,4,1],"rxn":"decomposition","first":"N","id":"n2o5"},{"L":[{"f":"Zn","a":{"Zn":1},"s":"s","m":65.38},{"f":"HCl","a":{"H":1,"Cl":1},"s":"aq","m":36.458}],"R":[{"f":"ZnCl₂","a":{"Zn":1,"Cl":2},"s":"aq","m":136.28},{"f":"H₂","a":{"H":2},"s":"g","m":2.016}],"ans":[1,2,1,1],"rxn":"single","first":"Cl","id":"zinc"},{"L":[{"f":"CaCO₃","a":{"Ca":1,"C":1,"O":3},"s":"s","m":100.086}],"R":[{"f":"CaO","a":{"Ca":1,"O":1},"s":"s","m":56.077},{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009}],"ans":[1,1,1],"rxn":"decomposition","first":"Ca","id":"limestone"}],[{"L":[{"f":"C₃H₈","a":{"C":3,"H":8},"s":"g","m":44.097},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[1,5,3,4],"rxn":"combustion","first":"C","id":"propane"},{"L":[{"f":"C₂H₆","a":{"C":2,"H":6},"s":"g","m":30.07},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[2,7,4,6],"rxn":"combustion","first":"C","id":"ethane"},{"L":[{"f":"C₆H₁₂O₆","a":{"C":6,"H":12,"O":6},"s":"s","m":180.156},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[1,6,6,6],"rxn":"combustion","first":"C","id":"glucose"},{"L":[{"f":"C₂H₂","a":{"C":2,"H":2},"s":"g","m":26.038},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[2,5,4,2],"rxn":"combustion","first":"C","id":"acetylene"},{"L":[{"f":"C₄H₁₀","a":{"C":4,"H":10},"s":"g","m":58.124},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[2,13,8,10],"rxn":"combustion","first":"C","id":"butane"},{"L":[{"f":"Fe₂O₃","a":{"Fe":2,"O":3},"s":"s","m":159.687},{"f":"CO","a":{"C":1,"O":1},"s":"g","m":28.01}],"R":[{"f":"Fe","a":{"Fe":1},"s":"s","m":55.845},{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009}],"ans":[1,3,2,3],"rxn":"single","first":"Fe","id":"smelting"},{"L":[{"f":"NH₃","a":{"N":1,"H":3},"s":"g","m":17.031},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"NO","a":{"N":1,"O":1},"s":"g","m":30.006},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[4,5,4,6],"rxn":"combustion","first":"N","id":"ostwald"},{"L":[{"f":"C₂H₅OH","a":{"C":2,"H":6,"O":1},"s":"l","m":46.069},{"f":"O₂","a":{"O":2},"s":"g","m":31.998}],"R":[{"f":"CO₂","a":{"C":1,"O":2},"s":"g","m":44.009},{"f":"H₂O","a":{"H":2,"O":1},"s":"l","m":18.015}],"ans":[1,3,2,3],"rxn":"combustion","first":"C","id":"ethanol"}]];
 var S={"ja":{"stateLabel":"状態","massLabel":"質量保存の確認","realLabel":"実際に起こること","aboutState":"(s) 固体 · (l) 液体 · (g) 気体 · (aq) 水溶液","howTitle":"遊び方","how1":"式の下にある原子数を見てください — 左 / 右 の数が表示されます。","how2":"− と + ボタンで各化学式の前の係数を変更します。","how3":"すべての数が一致（全部緑の ✓）したら「確認」を押します。最も簡単な比が高得点です。","whyTitle":"なぜバランスを取るの？","whyText":"化学反応では原子は生成も消滅もしません — 並び替わるだけです。これが質量保存の法則です。バランスの取れた式は両辺の原子数が同じで、実際に起こることを正しく表します。","rxnTitle":"反応の種類","ptTitle":"このゲームの元素","ptAppears":"登場する化合物","achTitle":"実績","dailyTitle":"今日のチャレンジ","dailyPlay":"挑戦","dailyDone":"本日クリア済み ✓","achFirst":"はじめての正解","achStreak":"5連続正解","achNoHint":"ヒントなしでレベルクリア","achLvl3":"レベル3クリア","achDaily":"デイリー達成","footNote":"LLLシリーズOSSの一つ — 無料・オープンソース。Live Laugh Love が開発しています。","viewGithub":"GitHub で見る","bestLabel":"最高","livesOut":"ライフがなくなりました。もう一度挑戦しましょう！","tryAgain":"もう一度","levelUp":"レベルクリア！","levelUpSub":"次のレベルに進みます。","continueBtn":"続ける","brand":"化学式バランス","instruction":"両辺の原子数が等しくなるように係数を調整してください。","checkBtn":"確認","revealBtn":"答えを見る","hintBtn":"ヒント","nextBtn":"次へ","levelLabel":"レベル","scoreLabel":"スコア","streakLabel":"連続正解","balanced":"バランスが取れました！","notBalanced":"まだバランスが取れていません。数を確認してください。","revealed":"これがバランスの取れた式です。","simplerTip":"（最も簡単な整数比が高得点）","rxnLabel":"反応の種類","hintText":"{el} から始めましょう — 最も少ない化合物に含まれています。","explainLabel":"解き方","explainText":"まず {el} を合わせ、次に残りの元素を順に調整します。","answerLabel":"答え","levelComplete":"レベルクリア！","combustion":"燃焼","synthesis":"化合","decomposition":"分解","single":"単置換"},"en":{"stateLabel":"State","massLabel":"Conservation of mass","realLabel":"What really happens","aboutState":"(s) solid · (l) liquid · (g) gas · (aq) dissolved in water","howTitle":"How to play","how1":"Look at the atom counts below the equation — each shows left / right.","how2":"Use the − and + buttons to change the coefficients in front of each formula.","how3":"When every count matches (all green ✓), press Check. The simplest ratio scores most.","whyTitle":"Why balance equations?","whyText":"Atoms are never created or destroyed in a chemical reaction — they are only rearranged. That's the law of conservation of mass. A balanced equation shows the same number of each atom on both sides, so it describes what really happens.","rxnTitle":"Reaction types","ptTitle":"Elements in this game","ptAppears":"Appears in","achTitle":"Achievements","dailyTitle":"Daily challenge","dailyPlay":"Play","dailyDone":"Done today ✓","achFirst":"First balance","achStreak":"5-streak","achNoHint":"No-hint level","achLvl3":"Level 3 cleared","achDaily":"Daily done","footNote":"Part of the LLL Series OSS — free and open source, built by Live Laugh Love.","viewGithub":"View on GitHub","bestLabel":"Best","livesOut":"Out of lives — give it another go!","tryAgain":"Try again","levelUp":"Level complete!","levelUpSub":"On to the next level.","continueBtn":"Continue","brand":"Chem Balancer","instruction":"Adjust the coefficients so both sides have equal atoms.","checkBtn":"Check","revealBtn":"Reveal","hintBtn":"Hint","nextBtn":"Next","levelLabel":"Level","scoreLabel":"Score","streakLabel":"Streak","balanced":"Balanced!","notBalanced":"Not balanced yet — check the counts below.","revealed":"Here's the balanced equation.","simplerTip":"(tip: the simplest whole-number ratio scores more)","rxnLabel":"Reaction type","hintText":"Start with {el} — it appears in the fewest compounds.","explainLabel":"How to solve it","explainText":"Balance {el} first, then work through the remaining elements one at a time.","answerLabel":"Answer","levelComplete":"Level complete!","combustion":"Combustion","synthesis":"Synthesis","decomposition":"Decomposition","single":"Single replacement"},"zh-Hans":{"stateLabel":"状态","massLabel":"质量守恒验证","realLabel":"实际发生的反应","aboutState":"(s) 固体 · (l) 液体 · (g) 气体 · (aq) 水溶液","howTitle":"玩法","how1":"看方程式下方的原子数——每个都显示 左 / 右。","how2":"用 − 和 + 按钮调整每个化学式前的系数。","how3":"当所有数字都相等（全部绿色 ✓）时，按「检查」。最简比得分最高。","whyTitle":"为什么要配平？","whyText":"化学反应中原子既不会产生也不会消失——只是重新排列。这就是质量守恒定律。配平后的方程式两边原子数相同，才能正确描述真实的反应。","rxnTitle":"反应类型","ptTitle":"本游戏中的元素","ptAppears":"出现在","achTitle":"成就","dailyTitle":"每日挑战","dailyPlay":"开始","dailyDone":"今日已完成 ✓","achFirst":"首次配平","achStreak":"连对5题","achNoHint":"无提示通关","achLvl3":"通过第3关","achDaily":"完成每日挑战","footNote":"LLL 系列开源软件之一——免费开源，由 Live Laugh Love 开发。","viewGithub":"在 GitHub 上查看","bestLabel":"最高","livesOut":"生命用完了——再试一次吧！","tryAgain":"再试一次","levelUp":"关卡完成！","levelUpSub":"进入下一关。","continueBtn":"继续","brand":"化学方程式配平","instruction":"调整系数，使两边原子数相等。","checkBtn":"检查","revealBtn":"显示答案","hintBtn":"提示","nextBtn":"下一个","levelLabel":"关卡","scoreLabel":"分数","streakLabel":"连胜","balanced":"已配平！","notBalanced":"还没配平——请检查下方的数字。","revealed":"这是配平后的方程式。","simplerTip":"（最简整数比得分更高）","rxnLabel":"反应类型","hintText":"从 {el} 开始——它出现在最少的化合物中。","explainLabel":"解题思路","explainText":"先配平 {el}，然后逐一调整其余元素。","answerLabel":"答案","levelComplete":"关卡完成！","combustion":"燃烧","synthesis":"化合","decomposition":"分解","single":"置换"},"zh-Hant":{"stateLabel":"狀態","massLabel":"質量守恆驗證","realLabel":"實際發生的反應","aboutState":"(s) 固體 · (l) 液體 · (g) 氣體 · (aq) 水溶液","howTitle":"玩法","how1":"看方程式下方的原子數——每個都顯示 左 / 右。","how2":"用 − 和 + 按鈕調整每個化學式前的係數。","how3":"當所有數字都相等（全部綠色 ✓）時，按「檢查」。最簡比得分最高。","whyTitle":"為什麼要配平？","whyText":"化學反應中原子既不會產生也不會消失——只是重新排列。這就是質量守恆定律。配平後的方程式兩邊原子數相同，才能正確描述真實的反應。","rxnTitle":"反應類型","ptTitle":"本遊戲中的元素","ptAppears":"出現在","achTitle":"成就","dailyTitle":"每日挑戰","dailyPlay":"開始","dailyDone":"今日已完成 ✓","achFirst":"首次配平","achStreak":"連對5題","achNoHint":"無提示過關","achLvl3":"通過第3關","achDaily":"完成每日挑戰","footNote":"LLL 系列開源軟體之一——免費開源，由 Live Laugh Love 開發。","viewGithub":"在 GitHub 上查看","bestLabel":"最高","livesOut":"生命用完了——再試一次吧！","tryAgain":"再試一次","levelUp":"關卡完成！","levelUpSub":"進入下一關。","continueBtn":"繼續","brand":"化學方程式配平","instruction":"調整係數，使兩邊原子數相等。","checkBtn":"檢查","revealBtn":"顯示答案","hintBtn":"提示","nextBtn":"下一個","levelLabel":"關卡","scoreLabel":"分數","streakLabel":"連勝","balanced":"已配平！","notBalanced":"還沒配平——請檢查下方的數字。","revealed":"這是配平後的方程式。","simplerTip":"（最簡整數比得分更高）","rxnLabel":"反應類型","hintText":"從 {el} 開始——它出現在最少的化合物中。","explainLabel":"解題思路","explainText":"先配平 {el}，然後逐一調整其餘元素。","answerLabel":"答案","levelComplete":"關卡完成！","combustion":"燃燒","synthesis":"化合","decomposition":"分解","single":"置換"},"ko":{"stateLabel":"상태","massLabel":"질량 보존 확인","realLabel":"실제로 일어나는 일","aboutState":"(s) 고체 · (l) 액체 · (g) 기체 · (aq) 수용액","howTitle":"게임 방법","how1":"식 아래의 원자 수를 보세요 — 각각 왼쪽 / 오른쪽 개수가 표시됩니다.","how2":"− 와 + 버튼으로 각 화학식 앞의 계수를 바꾸세요.","how3":"모든 개수가 일치하면(전부 초록 ✓) 확인을 누르세요. 가장 간단한 비가 최고점입니다.","whyTitle":"왜 균형을 맞출까요?","whyText":"화학 반응에서 원자는 생성되거나 사라지지 않고 재배열될 뿐입니다. 이것이 질량 보존의 법칙입니다. 균형 잡힌 식은 양쪽의 원자 수가 같아 실제 반응을 올바르게 나타냅니다.","rxnTitle":"반응 유형","ptTitle":"이 게임의 원소","ptAppears":"등장 화합물","achTitle":"업적","dailyTitle":"오늘의 도전","dailyPlay":"도전","dailyDone":"오늘 완료 ✓","achFirst":"첫 균형","achStreak":"5연속 정답","achNoHint":"힌트 없이 레벨 클리어","achLvl3":"레벨 3 클리어","achDaily":"데일리 완료","footNote":"LLL 시리즈 OSS의 하나 — 무료 오픈소스, Live Laugh Love 제작.","viewGithub":"GitHub에서 보기","bestLabel":"최고","livesOut":"목숨을 다 썼어요 — 다시 도전해 보세요!","tryAgain":"다시 시도","levelUp":"레벨 완료!","levelUpSub":"다음 레벨로 갑니다.","continueBtn":"계속","brand":"화학식 균형 맞추기","instruction":"양쪽 원자 수가 같도록 계수를 조정하세요.","checkBtn":"확인","revealBtn":"정답 보기","hintBtn":"힌트","nextBtn":"다음","levelLabel":"레벨","scoreLabel":"점수","streakLabel":"연속 정답","balanced":"균형 완성!","notBalanced":"아직 균형이 안 맞아요 — 아래 개수를 확인하세요.","revealed":"균형 잡힌 식입니다.","simplerTip":"(가장 간단한 정수비가 더 높은 점수)","rxnLabel":"반응 유형","hintText":"{el}부터 시작하세요 — 가장 적은 화합물에 나타납니다.","explainLabel":"푸는 방법","explainText":"먼저 {el}을 맞추고, 나머지 원소를 하나씩 조정하세요.","answerLabel":"정답","levelComplete":"레벨 완료!","combustion":"연소","synthesis":"화합","decomposition":"분해","single":"치환"},"ms":{"stateLabel":"Keadaan","massLabel":"Keabadian jisim","realLabel":"Apa yang sebenarnya berlaku","aboutState":"(s) pepejal · (l) cecair · (g) gas · (aq) larut dalam air","howTitle":"Cara bermain","how1":"Lihat kiraan atom di bawah persamaan — setiap satu menunjukkan kiri / kanan.","how2":"Guna butang − dan + untuk mengubah pekali di hadapan setiap formula.","how3":"Apabila semua kiraan sepadan (semua hijau ✓), tekan Semak. Nisbah paling ringkas dapat markah tertinggi.","whyTitle":"Kenapa perlu seimbang?","whyText":"Atom tidak dicipta atau dimusnahkan dalam tindak balas kimia — ia hanya disusun semula. Itulah hukum keabadian jisim. Persamaan seimbang menunjukkan bilangan atom yang sama di kedua-dua belah, jadi ia menggambarkan apa yang sebenarnya berlaku.","rxnTitle":"Jenis tindak balas","ptTitle":"Unsur dalam permainan ini","ptAppears":"Muncul dalam","achTitle":"Pencapaian","dailyTitle":"Cabaran harian","dailyPlay":"Main","dailyDone":"Selesai hari ini ✓","achFirst":"Imbangan pertama","achStreak":"5 berturut","achNoHint":"Tahap tanpa petunjuk","achLvl3":"Tahap 3 selesai","achDaily":"Harian selesai","footNote":"Sebahagian daripada LLL Series OSS — percuma dan sumber terbuka, dibina oleh Live Laugh Love.","viewGithub":"Lihat di GitHub","bestLabel":"Terbaik","livesOut":"Nyawa habis — cuba lagi!","tryAgain":"Cuba lagi","levelUp":"Tahap selesai!","levelUpSub":"Ke tahap seterusnya.","continueBtn":"Teruskan","brand":"Pengimbang Kimia","instruction":"Laraskan pekali supaya kedua-dua belah mempunyai atom yang sama.","checkBtn":"Semak","revealBtn":"Dedah","hintBtn":"Petunjuk","nextBtn":"Seterusnya","levelLabel":"Tahap","scoreLabel":"Markah","streakLabel":"Berturut","balanced":"Seimbang!","notBalanced":"Belum seimbang — semak kiraan di bawah.","revealed":"Ini persamaan yang seimbang.","simplerTip":"(nisbah nombor bulat paling ringkas dapat markah lebih)","rxnLabel":"Jenis tindak balas","hintText":"Mulakan dengan {el} — ia muncul dalam paling sedikit sebatian.","explainLabel":"Cara menyelesaikan","explainText":"Imbangkan {el} dahulu, kemudian laraskan unsur lain satu demi satu.","answerLabel":"Jawapan","levelComplete":"Tahap selesai!","combustion":"Pembakaran","synthesis":"Sintesis","decomposition":"Penguraian","single":"Penggantian tunggal"}};
 
-var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction that powers fuel cells.","ammonia":"The Haber process — how the world makes fertiliser, feeding billions.","hcl":"Hydrogen and chlorine combine explosively in light to form hydrogen chloride.","salt":"Sodium metal reacts violently with chlorine gas — the result is ordinary table salt.","kcl":"Potassium burns in chlorine to form potassium chloride, used as a salt substitute.","mgo":"Magnesium burns with a blinding white flame — the flash in old camera bulbs.","cacl2":"Calcium chloride is spread on icy roads to melt snow.","li2o":"Lithium tarnishes in air, forming lithium oxide on its surface.","methane":"Methane burning in oxygen — this is what happens when you light a gas stove.","peroxide":"Hydrogen peroxide slowly breaks down into water and oxygen — that's the fizzing on a cut.","kclo3":"Heating potassium chlorate releases oxygen — a classic school lab method.","alumina":"Aluminium instantly forms a thin oxide layer that protects it from corroding.","rust":"Iron reacting with oxygen — this is rust, slowly eating away at metal.","n2o5":"Dinitrogen pentoxide decomposes readily — it is unstable at room temperature.","zinc":"Zinc dropped into acid fizzes as hydrogen gas bubbles off.","limestone":"Heating limestone makes quicklime — the first step in making cement.","propane":"Propane burning — the fuel in barbecue grills and camping stoves.","ethane":"Ethane is a component of natural gas; burning it releases energy as heat.","glucose":"This is respiration — how your cells burn sugar to release energy.","acetylene":"Acetylene burns hot enough to cut steel — used in welding torches.","butane":"Butane burning — the fuel inside a cigarette lighter.","smelting":"Iron ore reduced by carbon monoxide in a blast furnace — how steel begins.","ostwald":"The first step of the Ostwald process, which turns ammonia into nitric acid.","ethanol":"Ethanol burning — the alcohol used as a biofuel and in spirit burners."},"ja":{"water":"水素が酸素と燃えて水になります — 燃料電池を動かす反応です。","ammonia":"ハーバー法 — 世界の肥料をつくり、何十億人もの食を支えています。","hcl":"水素と塩素は光を浴びると激しく反応し、塩化水素になります。","salt":"ナトリウムが塩素と激しく反応します — できるのはふつうの食塩です。","kcl":"カリウムが塩素中で燃え、塩化カリウムになります。減塩食品に使われます。","mgo":"マグネシウムはまばゆい白い炎で燃えます — 昔のフラッシュ球の光です。","cacl2":"塩化カルシウムは凍った道路にまいて雪を溶かします。","li2o":"リチウムは空気中で酸化し、表面に酸化リチウムができます。","methane":"メタンが酸素中で燃えます — ガスコンロに火をつけたときの反応です。","peroxide":"過酸化水素はゆっくり水と酸素に分解します — 傷口で泡が出るのはこれです。","kclo3":"塩素酸カリウムを加熱すると酸素が発生します — 学校の実験でおなじみです。","alumina":"アルミニウムはすぐに薄い酸化被膜をつくり、腐食を防ぎます。","rust":"鉄が酸素と反応します — これがさびで、金属を少しずつ蝕みます。","n2o5":"五酸化二窒素は容易に分解します — 室温では不安定です。","zinc":"亜鉛を酸に入れると、水素の泡が出てシュワシュワします。","limestone":"石灰石を熱すると生石灰ができます — セメントづくりの第一歩です。","propane":"プロパンの燃焼 — バーベキューやキャンプ用コンロの燃料です。","ethane":"エタンは天然ガスの成分で、燃えると熱としてエネルギーを放ちます。","glucose":"これは呼吸です — 細胞が糖を燃やしてエネルギーを取り出します。","acetylene":"アセチレンは鋼を切れるほど高温で燃えます — 溶接トーチに使われます。","butane":"ブタンの燃焼 — ライターの中の燃料です。","smelting":"高炉で鉄鉱石が一酸化炭素で還元されます — 鋼はここから始まります。","ostwald":"オストワルト法の第一段階で、アンモニアを硝酸に変えます。","ethanol":"エタノールの燃焼 — バイオ燃料やアルコールランプに使われます。"},"zh-Hans":{"water":"氢在氧气中燃烧生成水——燃料电池的反应原理。","ammonia":"哈伯法——世界靠它制造化肥，养活数十亿人。","hcl":"氢与氯在光照下剧烈反应生成氯化氢。","salt":"钠与氯气剧烈反应——生成的就是普通食盐。","kcl":"钾在氯气中燃烧生成氯化钾，可作低钠盐。","mgo":"镁燃烧发出刺眼白光——旧式闪光灯泡的原理。","cacl2":"氯化钙撒在结冰的路面上融雪。","li2o":"锂在空气中氧化，表面生成氧化锂。","methane":"甲烷在氧气中燃烧——点燃燃气灶时发生的反应。","peroxide":"过氧化氢缓慢分解成水和氧气——伤口冒泡就是这个反应。","kclo3":"加热氯酸钾放出氧气——经典的中学实验。","alumina":"铝表面立刻形成薄氧化层，防止进一步腐蚀。","rust":"铁与氧气反应——这就是铁锈，慢慢侵蚀金属。","n2o5":"五氧化二氮容易分解——在室温下并不稳定。","zinc":"锌放入酸中会冒泡，放出氢气。","limestone":"加热石灰石制得生石灰——制造水泥的第一步。","propane":"丙烷燃烧——烧烤炉和露营炉的燃料。","ethane":"乙烷是天然气的成分，燃烧时以热的形式释放能量。","glucose":"这是呼吸作用——细胞燃烧糖分释放能量。","acetylene":"乙炔燃烧温度极高，可切割钢材——用于焊枪。","butane":"丁烷燃烧——打火机里的燃料。","smelting":"高炉中一氧化碳还原铁矿石——钢铁的起点。","ostwald":"奥斯特瓦尔德法的第一步，把氨转化为硝酸。","ethanol":"乙醇燃烧——用作生物燃料和酒精灯燃料。"},"zh-Hant":{"water":"氫在氧氣中燃燒生成水——燃料電池的反應原理。","ammonia":"哈伯法——世界靠它製造化肥，養活數十億人。","hcl":"氫與氯在光照下劇烈反應生成氯化氫。","salt":"鈉與氯氣劇烈反應——生成的就是普通食鹽。","kcl":"鉀在氯氣中燃燒生成氯化鉀，可作低鈉鹽。","mgo":"鎂燃燒發出刺眼白光——舊式閃光燈泡的原理。","cacl2":"氯化鈣撒在結冰的路面上融雪。","li2o":"鋰在空氣中氧化，表面生成氧化鋰。","methane":"甲烷在氧氣中燃燒——點燃瓦斯爐時發生的反應。","peroxide":"過氧化氫緩慢分解成水和氧氣——傷口冒泡就是這個反應。","kclo3":"加熱氯酸鉀放出氧氣——經典的中學實驗。","alumina":"鋁表面立刻形成薄氧化層，防止進一步腐蝕。","rust":"鐵與氧氣反應——這就是鐵鏽，慢慢侵蝕金屬。","n2o5":"五氧化二氮容易分解——在室溫下並不穩定。","zinc":"鋅放入酸中會冒泡，放出氫氣。","limestone":"加熱石灰石製得生石灰——製造水泥的第一步。","propane":"丙烷燃燒——烤肉爐和露營爐的燃料。","ethane":"乙烷是天然氣的成分，燃燒時以熱的形式釋放能量。","glucose":"這是呼吸作用——細胞燃燒糖分釋放能量。","acetylene":"乙炔燃燒溫度極高，可切割鋼材——用於焊槍。","butane":"丁烷燃燒——打火機裡的燃料。","smelting":"高爐中一氧化碳還原鐵礦石——鋼鐵的起點。","ostwald":"奧士華法的第一步，把氨轉化為硝酸。","ethanol":"乙醇燃燒——用作生物燃料和酒精燈燃料。"},"ko":{"water":"수소가 산소와 연소해 물이 됩니다 — 연료전지를 움직이는 반응입니다.","ammonia":"하버법 — 세계의 비료를 만들어 수십억 명을 먹여 살립니다.","hcl":"수소와 염소는 빛을 받으면 격렬히 반응해 염화수소가 됩니다.","salt":"나트륨이 염소 기체와 격렬히 반응합니다 — 결과는 평범한 소금입니다.","kcl":"칼륨이 염소에서 타 염화칼륨이 되며, 저염 소금으로 쓰입니다.","mgo":"마그네슘은 눈부신 흰 불꽃으로 탑니다 — 옛 플래시 전구의 빛입니다.","cacl2":"염화칼슘은 얼어붙은 도로에 뿌려 눈을 녹입니다.","li2o":"리튬은 공기 중에서 산화되어 표면에 산화리튬이 생깁니다.","methane":"메탄이 산소에서 연소합니다 — 가스레인지를 켤 때 일어나는 반응입니다.","peroxide":"과산화수소는 천천히 물과 산소로 분해됩니다 — 상처에서 거품이 나는 이유입니다.","kclo3":"염소산칼륨을 가열하면 산소가 발생합니다 — 학교 실험의 고전입니다.","alumina":"알루미늄은 즉시 얇은 산화막을 만들어 부식을 막습니다.","rust":"철이 산소와 반응합니다 — 이것이 녹이며, 금속을 서서히 갉아먹습니다.","n2o5":"오산화이질소는 쉽게 분해됩니다 — 실온에서 불안정합니다.","zinc":"아연을 산에 넣으면 수소 기체가 거품처럼 발생합니다.","limestone":"석회석을 가열하면 생석회가 됩니다 — 시멘트 제조의 첫 단계입니다.","propane":"프로판 연소 — 바비큐 그릴과 캠핑 버너의 연료입니다.","ethane":"에탄은 천연가스의 성분이며, 태우면 열로 에너지를 냅니다.","glucose":"이것은 호흡입니다 — 세포가 당을 태워 에너지를 얻습니다.","acetylene":"아세틸렌은 강철을 자를 만큼 뜨겁게 탑니다 — 용접 토치에 쓰입니다.","butane":"부탄 연소 — 라이터 안의 연료입니다.","smelting":"고로에서 일산화탄소가 철광석을 환원합니다 — 강철의 시작입니다.","ostwald":"오스트발트법의 첫 단계로, 암모니아를 질산으로 바꿉니다.","ethanol":"에탄올 연소 — 바이오연료와 알코올램프에 쓰입니다."},"ms":{"water":"Hidrogen terbakar dalam oksigen membentuk air — tindak balas yang menggerakkan sel bahan api.","ammonia":"Proses Haber — cara dunia membuat baja, memberi makan berbilion orang.","hcl":"Hidrogen dan klorin bergabung secara meletup dalam cahaya membentuk hidrogen klorida.","salt":"Logam natrium bertindak balas ganas dengan gas klorin — hasilnya garam meja biasa.","kcl":"Kalium terbakar dalam klorin membentuk kalium klorida, digunakan sebagai ganti garam.","mgo":"Magnesium terbakar dengan nyala putih menyilaukan — kilat dalam mentol kamera lama.","cacl2":"Kalsium klorida ditabur di jalan berais untuk mencairkan salji.","li2o":"Litium mengusam di udara, membentuk litium oksida di permukaannya.","methane":"Metana terbakar dalam oksigen — inilah yang berlaku apabila anda menyalakan dapur gas.","peroxide":"Hidrogen peroksida terurai perlahan menjadi air dan oksigen — itulah buih pada luka.","kclo3":"Memanaskan kalium klorat membebaskan oksigen — kaedah makmal sekolah klasik.","alumina":"Aluminium serta-merta membentuk lapisan oksida nipis yang melindunginya daripada karat.","rust":"Besi bertindak balas dengan oksigen — inilah karat, perlahan-lahan menghakis logam.","n2o5":"Dinitrogen pentoksida terurai dengan mudah — ia tidak stabil pada suhu bilik.","zinc":"Zink yang dimasukkan ke dalam asid berbuih sambil membebaskan gas hidrogen.","limestone":"Memanaskan batu kapur menghasilkan kapur tohor — langkah pertama membuat simen.","propane":"Pembakaran propana — bahan api dalam gril barbeku dan dapur perkhemahan.","ethane":"Etana ialah komponen gas asli; membakarnya membebaskan tenaga sebagai haba.","glucose":"Ini ialah respirasi — cara sel anda membakar gula untuk membebaskan tenaga.","acetylene":"Asetilena terbakar cukup panas untuk memotong keluli — digunakan dalam obor kimpalan.","butane":"Pembakaran butana — bahan api di dalam pemetik api.","smelting":"Bijih besi diturunkan oleh karbon monoksida dalam relau bagas — permulaan keluli.","ostwald":"Langkah pertama proses Ostwald, yang menukar ammonia kepada asid nitrik.","ethanol":"Pembakaran etanol — alkohol yang digunakan sebagai biobahan api dan dalam pembakar spirit."}};
-  var ELEMENTS={"H":{"z":1,"n":{"en":"Hydrogen","ja":"水素","zh-Hans":"氢","zh-Hant":"氫","ko":"수소","ms":"Hidrogen"}},"Li":{"z":3,"n":{"en":"Lithium","ja":"リチウム","zh-Hans":"锂","zh-Hant":"鋰","ko":"리튬","ms":"Litium"}},"C":{"z":6,"n":{"en":"Carbon","ja":"炭素","zh-Hans":"碳","zh-Hant":"碳","ko":"탄소","ms":"Karbon"}},"N":{"z":7,"n":{"en":"Nitrogen","ja":"窒素","zh-Hans":"氮","zh-Hant":"氮","ko":"질소","ms":"Nitrogen"}},"O":{"z":8,"n":{"en":"Oxygen","ja":"酸素","zh-Hans":"氧","zh-Hant":"氧","ko":"산소","ms":"Oksigen"}},"Na":{"z":11,"n":{"en":"Sodium","ja":"ナトリウム","zh-Hans":"钠","zh-Hant":"鈉","ko":"나트륨","ms":"Natrium"}},"Mg":{"z":12,"n":{"en":"Magnesium","ja":"マグネシウム","zh-Hans":"镁","zh-Hant":"鎂","ko":"마그네슘","ms":"Magnesium"}},"Al":{"z":13,"n":{"en":"Aluminium","ja":"アルミニウム","zh-Hans":"铝","zh-Hant":"鋁","ko":"알루미늄","ms":"Aluminium"}},"Cl":{"z":17,"n":{"en":"Chlorine","ja":"塩素","zh-Hans":"氯","zh-Hant":"氯","ko":"염소","ms":"Klorin"}},"K":{"z":19,"n":{"en":"Potassium","ja":"カリウム","zh-Hans":"钾","zh-Hant":"鉀","ko":"칼륨","ms":"Kalium"}},"Ca":{"z":20,"n":{"en":"Calcium","ja":"カルシウム","zh-Hans":"钙","zh-Hant":"鈣","ko":"칼슘","ms":"Kalsium"}},"Fe":{"z":26,"n":{"en":"Iron","ja":"鉄","zh-Hans":"铁","zh-Hant":"鐵","ko":"철","ms":"Ferum"}},"Zn":{"z":30,"n":{"en":"Zinc","ja":"亜鉛","zh-Hans":"锌","zh-Hant":"鋅","ko":"아연","ms":"Zink"}}};
+var CATS={"alkali":{"en":"Alkali metal","ja":"アルカリ金属","zh-Hans":"碱金属","zh-Hant":"鹼金屬","ko":"알칼리 금속","ms":"Logam alkali"},"alkaline":{"en":"Alkaline earth","ja":"アルカリ土類金属","zh-Hans":"碱土金属","zh-Hant":"鹼土金屬","ko":"알칼리 토금속","ms":"Logam alkali bumi"},"transition":{"en":"Transition metal","ja":"遷移金属","zh-Hans":"过渡金属","zh-Hant":"過渡金屬","ko":"전이 금속","ms":"Logam peralihan"},"post":{"en":"Post-transition metal","ja":"卑金属","zh-Hans":"贫金属","zh-Hant":"貧金屬","ko":"전이후 금속","ms":"Logam pasca-peralihan"},"nonmetal":{"en":"Non-metal","ja":"非金属","zh-Hans":"非金属","zh-Hant":"非金屬","ko":"비금속","ms":"Bukan logam"},"halogen":{"en":"Halogen","ja":"ハロゲン","zh-Hans":"卤素","zh-Hant":"鹵素","ko":"할로겐","ms":"Halogen"}};
+  var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction that powers fuel cells.","ammonia":"The Haber process — how the world makes fertiliser, feeding billions.","hcl":"Hydrogen and chlorine combine explosively in light to form hydrogen chloride.","salt":"Sodium metal reacts violently with chlorine gas — the result is ordinary table salt.","kcl":"Potassium burns in chlorine to form potassium chloride, used as a salt substitute.","mgo":"Magnesium burns with a blinding white flame — the flash in old camera bulbs.","cacl2":"Calcium chloride is spread on icy roads to melt snow.","li2o":"Lithium tarnishes in air, forming lithium oxide on its surface.","methane":"Methane burning in oxygen — this is what happens when you light a gas stove.","peroxide":"Hydrogen peroxide slowly breaks down into water and oxygen — that's the fizzing on a cut.","kclo3":"Heating potassium chlorate releases oxygen — a classic school lab method.","alumina":"Aluminium instantly forms a thin oxide layer that protects it from corroding.","rust":"Iron reacting with oxygen — this is rust, slowly eating away at metal.","n2o5":"Dinitrogen pentoxide decomposes readily — it is unstable at room temperature.","zinc":"Zinc dropped into acid fizzes as hydrogen gas bubbles off.","limestone":"Heating limestone makes quicklime — the first step in making cement.","propane":"Propane burning — the fuel in barbecue grills and camping stoves.","ethane":"Ethane is a component of natural gas; burning it releases energy as heat.","glucose":"This is respiration — how your cells burn sugar to release energy.","acetylene":"Acetylene burns hot enough to cut steel — used in welding torches.","butane":"Butane burning — the fuel inside a cigarette lighter.","smelting":"Iron ore reduced by carbon monoxide in a blast furnace — how steel begins.","ostwald":"The first step of the Ostwald process, which turns ammonia into nitric acid.","ethanol":"Ethanol burning — the alcohol used as a biofuel and in spirit burners."},"ja":{"water":"水素が酸素と燃えて水になります — 燃料電池を動かす反応です。","ammonia":"ハーバー法 — 世界の肥料をつくり、何十億人もの食を支えています。","hcl":"水素と塩素は光を浴びると激しく反応し、塩化水素になります。","salt":"ナトリウムが塩素と激しく反応します — できるのはふつうの食塩です。","kcl":"カリウムが塩素中で燃え、塩化カリウムになります。減塩食品に使われます。","mgo":"マグネシウムはまばゆい白い炎で燃えます — 昔のフラッシュ球の光です。","cacl2":"塩化カルシウムは凍った道路にまいて雪を溶かします。","li2o":"リチウムは空気中で酸化し、表面に酸化リチウムができます。","methane":"メタンが酸素中で燃えます — ガスコンロに火をつけたときの反応です。","peroxide":"過酸化水素はゆっくり水と酸素に分解します — 傷口で泡が出るのはこれです。","kclo3":"塩素酸カリウムを加熱すると酸素が発生します — 学校の実験でおなじみです。","alumina":"アルミニウムはすぐに薄い酸化被膜をつくり、腐食を防ぎます。","rust":"鉄が酸素と反応します — これがさびで、金属を少しずつ蝕みます。","n2o5":"五酸化二窒素は容易に分解します — 室温では不安定です。","zinc":"亜鉛を酸に入れると、水素の泡が出てシュワシュワします。","limestone":"石灰石を熱すると生石灰ができます — セメントづくりの第一歩です。","propane":"プロパンの燃焼 — バーベキューやキャンプ用コンロの燃料です。","ethane":"エタンは天然ガスの成分で、燃えると熱としてエネルギーを放ちます。","glucose":"これは呼吸です — 細胞が糖を燃やしてエネルギーを取り出します。","acetylene":"アセチレンは鋼を切れるほど高温で燃えます — 溶接トーチに使われます。","butane":"ブタンの燃焼 — ライターの中の燃料です。","smelting":"高炉で鉄鉱石が一酸化炭素で還元されます — 鋼はここから始まります。","ostwald":"オストワルト法の第一段階で、アンモニアを硝酸に変えます。","ethanol":"エタノールの燃焼 — バイオ燃料やアルコールランプに使われます。"},"zh-Hans":{"water":"氢在氧气中燃烧生成水——燃料电池的反应原理。","ammonia":"哈伯法——世界靠它制造化肥，养活数十亿人。","hcl":"氢与氯在光照下剧烈反应生成氯化氢。","salt":"钠与氯气剧烈反应——生成的就是普通食盐。","kcl":"钾在氯气中燃烧生成氯化钾，可作低钠盐。","mgo":"镁燃烧发出刺眼白光——旧式闪光灯泡的原理。","cacl2":"氯化钙撒在结冰的路面上融雪。","li2o":"锂在空气中氧化，表面生成氧化锂。","methane":"甲烷在氧气中燃烧——点燃燃气灶时发生的反应。","peroxide":"过氧化氢缓慢分解成水和氧气——伤口冒泡就是这个反应。","kclo3":"加热氯酸钾放出氧气——经典的中学实验。","alumina":"铝表面立刻形成薄氧化层，防止进一步腐蚀。","rust":"铁与氧气反应——这就是铁锈，慢慢侵蚀金属。","n2o5":"五氧化二氮容易分解——在室温下并不稳定。","zinc":"锌放入酸中会冒泡，放出氢气。","limestone":"加热石灰石制得生石灰——制造水泥的第一步。","propane":"丙烷燃烧——烧烤炉和露营炉的燃料。","ethane":"乙烷是天然气的成分，燃烧时以热的形式释放能量。","glucose":"这是呼吸作用——细胞燃烧糖分释放能量。","acetylene":"乙炔燃烧温度极高，可切割钢材——用于焊枪。","butane":"丁烷燃烧——打火机里的燃料。","smelting":"高炉中一氧化碳还原铁矿石——钢铁的起点。","ostwald":"奥斯特瓦尔德法的第一步，把氨转化为硝酸。","ethanol":"乙醇燃烧——用作生物燃料和酒精灯燃料。"},"zh-Hant":{"water":"氫在氧氣中燃燒生成水——燃料電池的反應原理。","ammonia":"哈伯法——世界靠它製造化肥，養活數十億人。","hcl":"氫與氯在光照下劇烈反應生成氯化氫。","salt":"鈉與氯氣劇烈反應——生成的就是普通食鹽。","kcl":"鉀在氯氣中燃燒生成氯化鉀，可作低鈉鹽。","mgo":"鎂燃燒發出刺眼白光——舊式閃光燈泡的原理。","cacl2":"氯化鈣撒在結冰的路面上融雪。","li2o":"鋰在空氣中氧化，表面生成氧化鋰。","methane":"甲烷在氧氣中燃燒——點燃瓦斯爐時發生的反應。","peroxide":"過氧化氫緩慢分解成水和氧氣——傷口冒泡就是這個反應。","kclo3":"加熱氯酸鉀放出氧氣——經典的中學實驗。","alumina":"鋁表面立刻形成薄氧化層，防止進一步腐蝕。","rust":"鐵與氧氣反應——這就是鐵鏽，慢慢侵蝕金屬。","n2o5":"五氧化二氮容易分解——在室溫下並不穩定。","zinc":"鋅放入酸中會冒泡，放出氫氣。","limestone":"加熱石灰石製得生石灰——製造水泥的第一步。","propane":"丙烷燃燒——烤肉爐和露營爐的燃料。","ethane":"乙烷是天然氣的成分，燃燒時以熱的形式釋放能量。","glucose":"這是呼吸作用——細胞燃燒糖分釋放能量。","acetylene":"乙炔燃燒溫度極高，可切割鋼材——用於焊槍。","butane":"丁烷燃燒——打火機裡的燃料。","smelting":"高爐中一氧化碳還原鐵礦石——鋼鐵的起點。","ostwald":"奧士華法的第一步，把氨轉化為硝酸。","ethanol":"乙醇燃燒——用作生物燃料和酒精燈燃料。"},"ko":{"water":"수소가 산소와 연소해 물이 됩니다 — 연료전지를 움직이는 반응입니다.","ammonia":"하버법 — 세계의 비료를 만들어 수십억 명을 먹여 살립니다.","hcl":"수소와 염소는 빛을 받으면 격렬히 반응해 염화수소가 됩니다.","salt":"나트륨이 염소 기체와 격렬히 반응합니다 — 결과는 평범한 소금입니다.","kcl":"칼륨이 염소에서 타 염화칼륨이 되며, 저염 소금으로 쓰입니다.","mgo":"마그네슘은 눈부신 흰 불꽃으로 탑니다 — 옛 플래시 전구의 빛입니다.","cacl2":"염화칼슘은 얼어붙은 도로에 뿌려 눈을 녹입니다.","li2o":"리튬은 공기 중에서 산화되어 표면에 산화리튬이 생깁니다.","methane":"메탄이 산소에서 연소합니다 — 가스레인지를 켤 때 일어나는 반응입니다.","peroxide":"과산화수소는 천천히 물과 산소로 분해됩니다 — 상처에서 거품이 나는 이유입니다.","kclo3":"염소산칼륨을 가열하면 산소가 발생합니다 — 학교 실험의 고전입니다.","alumina":"알루미늄은 즉시 얇은 산화막을 만들어 부식을 막습니다.","rust":"철이 산소와 반응합니다 — 이것이 녹이며, 금속을 서서히 갉아먹습니다.","n2o5":"오산화이질소는 쉽게 분해됩니다 — 실온에서 불안정합니다.","zinc":"아연을 산에 넣으면 수소 기체가 거품처럼 발생합니다.","limestone":"석회석을 가열하면 생석회가 됩니다 — 시멘트 제조의 첫 단계입니다.","propane":"프로판 연소 — 바비큐 그릴과 캠핑 버너의 연료입니다.","ethane":"에탄은 천연가스의 성분이며, 태우면 열로 에너지를 냅니다.","glucose":"이것은 호흡입니다 — 세포가 당을 태워 에너지를 얻습니다.","acetylene":"아세틸렌은 강철을 자를 만큼 뜨겁게 탑니다 — 용접 토치에 쓰입니다.","butane":"부탄 연소 — 라이터 안의 연료입니다.","smelting":"고로에서 일산화탄소가 철광석을 환원합니다 — 강철의 시작입니다.","ostwald":"오스트발트법의 첫 단계로, 암모니아를 질산으로 바꿉니다.","ethanol":"에탄올 연소 — 바이오연료와 알코올램프에 쓰입니다."},"ms":{"water":"Hidrogen terbakar dalam oksigen membentuk air — tindak balas yang menggerakkan sel bahan api.","ammonia":"Proses Haber — cara dunia membuat baja, memberi makan berbilion orang.","hcl":"Hidrogen dan klorin bergabung secara meletup dalam cahaya membentuk hidrogen klorida.","salt":"Logam natrium bertindak balas ganas dengan gas klorin — hasilnya garam meja biasa.","kcl":"Kalium terbakar dalam klorin membentuk kalium klorida, digunakan sebagai ganti garam.","mgo":"Magnesium terbakar dengan nyala putih menyilaukan — kilat dalam mentol kamera lama.","cacl2":"Kalsium klorida ditabur di jalan berais untuk mencairkan salji.","li2o":"Litium mengusam di udara, membentuk litium oksida di permukaannya.","methane":"Metana terbakar dalam oksigen — inilah yang berlaku apabila anda menyalakan dapur gas.","peroxide":"Hidrogen peroksida terurai perlahan menjadi air dan oksigen — itulah buih pada luka.","kclo3":"Memanaskan kalium klorat membebaskan oksigen — kaedah makmal sekolah klasik.","alumina":"Aluminium serta-merta membentuk lapisan oksida nipis yang melindunginya daripada karat.","rust":"Besi bertindak balas dengan oksigen — inilah karat, perlahan-lahan menghakis logam.","n2o5":"Dinitrogen pentoksida terurai dengan mudah — ia tidak stabil pada suhu bilik.","zinc":"Zink yang dimasukkan ke dalam asid berbuih sambil membebaskan gas hidrogen.","limestone":"Memanaskan batu kapur menghasilkan kapur tohor — langkah pertama membuat simen.","propane":"Pembakaran propana — bahan api dalam gril barbeku dan dapur perkhemahan.","ethane":"Etana ialah komponen gas asli; membakarnya membebaskan tenaga sebagai haba.","glucose":"Ini ialah respirasi — cara sel anda membakar gula untuk membebaskan tenaga.","acetylene":"Asetilena terbakar cukup panas untuk memotong keluli — digunakan dalam obor kimpalan.","butane":"Pembakaran butana — bahan api di dalam pemetik api.","smelting":"Bijih besi diturunkan oleh karbon monoksida dalam relau bagas — permulaan keluli.","ostwald":"Langkah pertama proses Ostwald, yang menukar ammonia kepada asid nitrik.","ethanol":"Pembakaran etanol — alkohol yang digunakan sebagai biobahan api dan dalam pembakar spirit."}};
+  var ELEMENTS={"H":{"z":1,"c":"nonmetal","n":{"en":"Hydrogen","ja":"水素","zh-Hans":"氢","zh-Hant":"氫","ko":"수소","ms":"Hidrogen"}},"Li":{"z":3,"c":"alkali","n":{"en":"Lithium","ja":"リチウム","zh-Hans":"锂","zh-Hant":"鋰","ko":"리튬","ms":"Litium"}},"C":{"z":6,"c":"nonmetal","n":{"en":"Carbon","ja":"炭素","zh-Hans":"碳","zh-Hant":"碳","ko":"탄소","ms":"Karbon"}},"N":{"z":7,"c":"nonmetal","n":{"en":"Nitrogen","ja":"窒素","zh-Hans":"氮","zh-Hant":"氮","ko":"질소","ms":"Nitrogen"}},"O":{"z":8,"c":"nonmetal","n":{"en":"Oxygen","ja":"酸素","zh-Hans":"氧","zh-Hant":"氧","ko":"산소","ms":"Oksigen"}},"Na":{"z":11,"c":"alkali","n":{"en":"Sodium","ja":"ナトリウム","zh-Hans":"钠","zh-Hant":"鈉","ko":"나트륨","ms":"Natrium"}},"Mg":{"z":12,"c":"alkaline","n":{"en":"Magnesium","ja":"マグネシウム","zh-Hans":"镁","zh-Hant":"鎂","ko":"마그네슘","ms":"Magnesium"}},"Al":{"z":13,"c":"post","n":{"en":"Aluminium","ja":"アルミニウム","zh-Hans":"铝","zh-Hant":"鋁","ko":"알루미늄","ms":"Aluminium"}},"Cl":{"z":17,"c":"halogen","n":{"en":"Chlorine","ja":"塩素","zh-Hans":"氯","zh-Hant":"氯","ko":"염소","ms":"Klorin"}},"K":{"z":19,"c":"alkali","n":{"en":"Potassium","ja":"カリウム","zh-Hans":"钾","zh-Hant":"鉀","ko":"칼륨","ms":"Kalium"}},"Ca":{"z":20,"c":"alkaline","n":{"en":"Calcium","ja":"カルシウム","zh-Hans":"钙","zh-Hant":"鈣","ko":"칼슘","ms":"Kalsium"}},"Fe":{"z":26,"c":"transition","n":{"en":"Iron","ja":"鉄","zh-Hans":"铁","zh-Hant":"鐵","ko":"철","ms":"Ferum"}},"Zn":{"z":30,"c":"transition","n":{"en":"Zinc","ja":"亜鉛","zh-Hans":"锌","zh-Hant":"鋅","ko":"아연","ms":"Zink"}}};
   (function () {
     "use strict";
 
@@ -317,8 +386,16 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
     var levelV=document.getElementById("levelV"), scoreV=document.getElementById("scoreV");
     var streakV=document.getElementById("streakV"), progressBar=document.getElementById("progressBar");
     var bestV=document.getElementById("bestV"), livesEl=document.getElementById("lives");
+    var scaleEl=document.getElementById("scale"), beamEl=document.getElementById("beam");
+    var confettiHost=document.getElementById("confetti");
+    var reduceMotion = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+    var prevOk = {};
     var navRight=document.getElementById("navRight");
 
+    function catName(c){
+      var t=CATS[c]; if(!t) return c;
+      return t[LLL_I18N.lang()] || t.en;
+    }
     function elName(sym){
       var e=ELEMENTS[sym]; if(!e) return sym;
       return e.n[LLL_I18N.lang()] || e.n.en;
@@ -349,7 +426,7 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
     function bumpBest(){ if(score>best){ best=score; safeSet("lll_chem_best",String(best)); renderBest(); } }
 
     var uiReady=false;
-    LLL_I18N.init(S, { switcherHost: langHost, onChange: function(){ if(cur) redraw(); if(uiReady){ renderAch(); renderDaily(); ptInfo.textContent=""; } } });
+    LLL_I18N.init(S, { switcherHost: langHost, onChange: function(){ if(cur) redraw(); if(uiReady){ renderAch(); renderDaily(); buildPT(); ptInfo.textContent=""; } } });
 
     function gcdArr(a){function g(x,y){return y?g(y,x%y):x;}return a.reduce(function(p,c){return g(p,c);});}
 
@@ -405,9 +482,13 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
 
     function drawEquation(){
       eqEl.innerHTML=""; var gi=0;
-      cur.L.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
-      eqEl.appendChild(sep("\u2192"));
-      cur.R.forEach(function(s,i){ if(i>0)eqEl.appendChild(sep("+")); eqEl.appendChild(chip(s,gi)); gi++; });
+      var left=document.createElement("div"); left.className="side";
+      cur.L.forEach(function(s,i){ if(i>0)left.appendChild(sep("+")); left.appendChild(chip(s,gi)); gi++; });
+      var right=document.createElement("div"); right.className="side";
+      var arrow=document.createElement("span"); arrow.className="arrow"; arrow.textContent="\u2192";
+      right.appendChild(arrow);
+      cur.R.forEach(function(s,i){ if(i>0)right.appendChild(sep("+")); right.appendChild(chip(s,gi)); gi++; });
+      eqEl.appendChild(left); eqEl.appendChild(right);
     }
 
     function render(){
@@ -416,7 +497,7 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
       cur.L.forEach(function(s){species.push({sp:s,side:"L"});});
       cur.R.forEach(function(s){species.push({sp:s,side:"R"});});
       species.forEach(function(){coefs.push(1);});
-      done=false; hinted=false;
+      done=false; hinted=false; prevOk={};
       hintText.textContent="";
       result.classList.add("hidden");
       checkBtn.style.display="block"; revealBtn.style.display="block"; hintBtn.style.display="block";
@@ -439,11 +520,17 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
       var c=counts(), els={}, k;
       for(k in c.L)els[k]=1; for(k in c.R)els[k]=1;
       tallyEl.innerHTML="";
+      var diff=0, allOk=true;
       Object.keys(els).forEach(function(el){
         var l=c.L[el]||0, r=c.R[el]||0, ok=(l===r);
+        diff += (l-r);
+        if(!ok) allOk=false;
         var ch=document.createElement("button");
         ch.type="button";
         ch.className="tchip"+(ok?" ok":"");
+        // pop only when this element just became balanced
+        if(ok && !prevOk[el] && !reduceMotion) ch.classList.add("pop");
+        prevOk[el]=ok;
         ch.textContent=el+" "+l+" / "+r+(ok?"  \u2713":"");
         if(ELEMENTS[el]){
           ch.title=elName(el);
@@ -451,6 +538,16 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
         }
         tallyEl.appendChild(ch);
       });
+      updateScale(diff, allOk);
+    }
+
+    /* Tilt the balance scale by the signed atom difference; level when balanced. */
+    function updateScale(diff, allOk){
+      if(!beamEl) return;
+      var angle = Math.max(-14, Math.min(14, diff * 3));   // clamp tilt
+      if(allOk) angle = 0;
+      beamEl.style.transform = "rotate(" + angle + "deg)";
+      scaleEl.classList.toggle("ok", allOk);
     }
 
     function finish(pts, msg, col, showAnswer){
@@ -545,6 +642,7 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
         hintsThisLevel=0;
         qi=0; lives=MAX_LIVES;                 // fresh lives each level
         lv=(lv+1)%LEVELS.length;
+        confetti();                            // celebrate finishing a level
       }
       render();
     };
@@ -565,15 +663,27 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
 
     function buildPT(){
       ptGrid.innerHTML="";
+      var order=["alkali","alkaline","transition","post","nonmetal","halogen"], present={};
       Object.keys(ELEMENTS).forEach(function(sym){
         var b=document.createElement("button");
         b.type="button";
+        if(ELEMENTS[sym].c){ b.className="cat-"+ELEMENTS[sym].c; present[ELEMENTS[sym].c]=1; }
         b.innerHTML='<span class="sym">'+sym+'</span><span class="num">'+ELEMENTS[sym].z+'</span>';
         b.onclick=function(){
           ptInfo.textContent = sym+" \u00b7 "+elName(sym)+" \u00b7 #"+ELEMENTS[sym].z+
+            " \u00b7 "+catName(ELEMENTS[sym].c)+
             " \u2014 "+LLL_I18N.t("ptAppears")+": "+compoundsWith(sym).join(", ");
         };
         ptGrid.appendChild(b);
+      });
+      var lg=document.getElementById("ptLegend");
+      lg.innerHTML="";
+      order.forEach(function(c){
+        if(!present[c]) return;
+        var sp=document.createElement("span");
+        sp.className="cat-"+c;
+        sp.innerHTML='<i></i>'+catName(c);
+        lg.appendChild(sp);
       });
     }
 
@@ -653,6 +763,26 @@ var DESC={"en":{"water":"Hydrogen burns in oxygen to form water — the reaction
 
     buildPT(); renderAch(); renderDaily();
     uiReady=true;
+    function confetti(){
+      if(reduceMotion || !confettiHost) return;
+      var colors=["#e8845a","#e0b13c","#6aa9d8","#63b57e","#b57ec6"];
+      for(var i=0;i<80;i++){
+        (function(){
+          var d=document.createElement("div");
+          d.className="conf";
+          d.style.left=(Math.random()*100)+"vw";
+          d.style.background=colors[i%colors.length];
+          d.style.borderRadius=(Math.random()<0.5?"50%":"2px");
+          var dur=(2.2+Math.random()*1.6);
+          d.style.animationDuration=dur+"s";
+          d.style.animationDelay=(Math.random()*0.3)+"s";
+          d.style.transform="translateX("+((Math.random()*40)-20)+"px)";
+          confettiHost.appendChild(d);
+          setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, (dur+0.6)*1000);
+        })();
+      }
+    }
+
     render();
   })();
   </script>
