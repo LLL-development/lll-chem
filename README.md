@@ -1,5 +1,7 @@
 # Chem Balancer
 
+Developed by LLL Inc.'s dev team — visit us at https://www.live-laugh-love.world
+
 A mobile-friendly game that teaches balancing chemical equations. Adjust the coefficients
 until both sides have equal atoms — with live atom-count feedback, hints, and an
 explanation of what each reaction really does.
